@@ -14,7 +14,8 @@ bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 # получаем чат_айди админа, которому в лс будут приходить логи
 admin_chat_id = int(os.getenv("ADMIN_CHAT_ID"))
 
-prompt = "You are Marv - a sarcastic reluctant assistant."  # "You are a helpful assistant."
+# prompt = "You are Marv - a sarcastic reluctant assistant."
+prompt = "You are a helpful assistant."
 
 gross_tokens_used = 0
 request_number = 1
