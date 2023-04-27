@@ -8,3 +8,6 @@ OPENAI_API_KEY = sk-naborbukvapi
 OPENAI_API_KEY2 = sk-naborbukvapi2 (сейчас не используется)
 TELEGRAM_API_KEY = naborbukvTGapi
 ADMIN_CHAT_ID = 123456789
+
+TELEGRAM_API_KEY - Это апи ключ от твоего бота, созданного в https://t.me/BotFather
+ADMIN_CHAT_ID - это телеграм айди твоего аккаунта. Ты можешь получить его отправив любое сообщение боту https://t.me/JsonDumpBot. Оно будет находится в message>chat>id
