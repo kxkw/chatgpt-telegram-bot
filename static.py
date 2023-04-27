@@ -2,4 +2,3 @@ prompt = "You are a helpful assistant."  # prompt = "You are Marv - a sarcastic 
 session_tokens = 0
 request_number = 0
 price_1k = 0.002
-price_cents = price_1k / 10
