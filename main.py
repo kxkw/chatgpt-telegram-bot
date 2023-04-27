@@ -1,9 +1,12 @@
 from dotenv.main import load_dotenv
 import telebot
+import _thread
 import openai
 import static
 import json
+import time
 import os
+
 
 # API1: $18, 1 June; API2: $5, 1 July
 # Load OpenAI API credentials from .env file
@@ -36,9 +39,27 @@ session_tokens = 0
 request_number = 0
 
 
+@bot.message_handler(commands=["stop"])
+def stop(message: telebot.types.Message):
+    if message.from_user.id == admin_chat_id:
+        bot.send_message(message.from_user.id, "Are you sure you want to turn off the bot?\n/y | /n")
+        bot.register_next_step_handler(message, are_you_sure_to_stop)
+
+
+def are_you_sure_to_stop(message: telebot.types.Message):
+    if message.text == "/y":
+        bot.send_message(message.from_user.id, "Exited")
+        time.sleep(2)
+        _thread.interrupt_main()
+    elif message.text == "/n":
+        bot.send_message(message.from_user.id, "Cancelled")
+    else:
+        bot.send_message(message.from_user.id, "Unknown answer, cancelled")
+
+
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
-def handle_message(message):
+def handle_message(message: telebot.types.Message):
     global session_tokens
     global request_number
     global data
