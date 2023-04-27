@@ -1,6 +1,7 @@
+from dotenv.main import load_dotenv
 import telebot
 import openai
-from dotenv.main import load_dotenv
+import static
 import json
 import os
 
@@ -31,14 +32,8 @@ bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 # получаем чат_айди админа, которому в лс будут приходить логи
 admin_chat_id = int(os.getenv("ADMIN_CHAT_ID"))
 
-# prompt = "You are Marv - a sarcastic reluctant assistant."
-prompt = "You are a helpful assistant."
-
 session_tokens = 0
 request_number = 0
-price_1k = 0.002
-
-price_cents = price_1k / 10
 
 
 # Define the message handler for incoming messages
@@ -46,7 +41,6 @@ price_cents = price_1k / 10
 def handle_message(message):
     global session_tokens
     global request_number
-    global prompt
     global data
 
     # Send the user's message to OpenAI API and get the response
@@ -54,11 +48,10 @@ def handle_message(message):
         model="gpt-3.5-turbo",
         max_tokens=3000,
         messages=[
-            {"role": "system", "content": prompt},
+            {"role": "system", "content": static.prompt},
             {"role": "user", "content": message.text},
         ]
     )
-    # print(response)
 
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
     session_tokens += request_tokens
@@ -66,6 +59,8 @@ def handle_message(message):
 
     data["tokens"] += request_tokens
     data["requests"] += 1
+
+    price_cents = static.price_1k / 10
 
     # записываем инфу о количестве запросов и токенах
     with open(filename, "w") as f:
@@ -83,7 +78,7 @@ def handle_message(message):
     admin_log = (f"Запрос {request_number}: {request_tokens} токенов за ¢{round(request_price, 4)},"
                  f" всего {session_tokens} за ¢{round(session_tokens * price_cents, 4)},"
                  f" {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
-                 f"\n{data}, ¢{round(data['tokens']*price_cents, 4)}")
+                 f"\n{data}, ¢{round(data['tokens'] * price_cents, 4)}")
 
     # пишем лог работы в консоль
     print(admin_log)
@@ -93,5 +88,7 @@ def handle_message(message):
         bot.send_message(admin_chat_id, admin_log)
 
 
-# Start the bot
-bot.polling()
+if __name__ == "__main__":
+    # Start the bot
+    print("Started")
+    bot.infinity_polling()
