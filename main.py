@@ -56,7 +56,7 @@ def are_you_sure_to_stop(message: telebot.types.Message):
 
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
-def handle_message(message):
+def handle_message(message: telebot.types.Message):
     global data
 
     # Send the user's message to OpenAI API and get the response
