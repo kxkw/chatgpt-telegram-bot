@@ -54,24 +54,26 @@ def handle_message(message):
 
     data["tokens"] += request_tokens
     data["requests"] += 1
+    
+    price_cents = static.price_1k / 10
 
     # записываем инфу о количестве запросов и токенах
     with open(filename, "w") as f:
         json.dump(data, f)
 
-    request_price = request_tokens * static.price_cents
+    request_price = request_tokens * price_cents
     # формируем лог работы для юзера
     user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 4)}. " \
-               f"\nОбщая стоимость сессии: ¢{round(static.session_tokens * static.price_cents, 4)}"
+               f"\nОбщая стоимость сессии: ¢{round(static.session_tokens * price_cents, 4)}"
 
     # Send the response back to the user
     bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
 
     # формируем лог работы для админа
     admin_log = (f"Запрос {static.request_number}: {request_tokens} токенов за ¢{round(request_price, 4)},"
-                 f" всего {static.session_tokens} за ¢{round(static.session_tokens * static.price_cents, 4)},"
+                 f" всего {static.session_tokens} за ¢{round(static.session_tokens * price_cents, 4)},"
                  f" {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
-                 f"\n{data}, ¢{round(data['tokens']*static.price_cents, 4)}")
+                 f"\n{data}, ¢{round(data['tokens'] * price_cents, 4)}")
 
     # пишем лог работы в консоль
     print(admin_log)
