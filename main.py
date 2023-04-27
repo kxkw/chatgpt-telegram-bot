@@ -32,10 +32,15 @@ bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 # получаем чат_айди админа, которому в лс будут приходить логи
 admin_chat_id = int(os.getenv("ADMIN_CHAT_ID"))
 
+session_tokens = 0
+request_number = 0
+
 
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
+    global session_tokens
+    global request_number
     global data
 
     # Send the user's message to OpenAI API and get the response
@@ -49,12 +54,12 @@ def handle_message(message):
     )
 
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
-    static.session_tokens += request_tokens
-    static.request_number += 1
+    session_tokens += request_tokens
+    request_number += 1
 
     data["tokens"] += request_tokens
     data["requests"] += 1
-    
+
     price_cents = static.price_1k / 10
 
     # записываем инфу о количестве запросов и токенах
@@ -64,14 +69,14 @@ def handle_message(message):
     request_price = request_tokens * price_cents
     # формируем лог работы для юзера
     user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 4)}. " \
-               f"\nОбщая стоимость сессии: ¢{round(static.session_tokens * price_cents, 4)}"
+               f"\nОбщая стоимость сессии: ¢{round(session_tokens * price_cents, 4)}"
 
     # Send the response back to the user
     bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
 
     # формируем лог работы для админа
-    admin_log = (f"Запрос {static.request_number}: {request_tokens} токенов за ¢{round(request_price, 4)},"
-                 f" всего {static.session_tokens} за ¢{round(static.session_tokens * price_cents, 4)},"
+    admin_log = (f"Запрос {request_number}: {request_tokens} токенов за ¢{round(request_price, 4)},"
+                 f" всего {session_tokens} за ¢{round(session_tokens * price_cents, 4)},"
                  f" {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
                  f"\n{data}, ¢{round(data['tokens'] * price_cents, 4)}")
 
