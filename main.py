@@ -4,10 +4,12 @@ from dotenv.main import load_dotenv
 import json
 import os
 
-# API1: $18, 1 June; API2: $5, 1 July
-# Load OpenAI API credentials from .env file
-load_dotenv()
 
+prompt = "You are a helpful assistant."  # "You are Marv - a sarcastic reluctant assistant."
+price_1k = 0.002  # price per 1k rokens in USD
+
+
+# File with global token usage data
 filename = "data.json"
 default_data = {"requests": 0, "tokens": 0}  # Default values for the JSON file
 
@@ -23,22 +25,23 @@ else:
     data = default_data
 
 
+# load .env file with secrets
+load_dotenv()
+
+# Load OpenAI API credentials from .env file
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Create a new Telebot instance
 bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 
-# получаем чат_айди админа, которому в лс будут приходить логи
+# Получаем чат_айди админа, которому в лс будут приходить логи
 admin_chat_id = int(os.getenv("ADMIN_CHAT_ID"))
 
-# prompt = "You are Marv - a sarcastic reluctant assistant."
-prompt = "You are a helpful assistant."
+price_cents = price_1k / 10
 
+# Session token and request counters
 session_tokens = 0
 request_number = 0
-price_1k = 0.002
-
-price_cents = price_1k / 10
 
 
 # Define the message handler for incoming messages
@@ -49,7 +52,7 @@ def handle_message(message):
     global prompt
     global data
 
-    # Send the user's message to OpenAI API and get the response
+    # Send the user's message to OpenAI API and get the response. System message is for chat context (in the future)
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         max_tokens=3000,
@@ -58,20 +61,23 @@ def handle_message(message):
             {"role": "user", "content": message.text},
         ]
     )
-    # print(response)
 
+    # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
     session_tokens += request_tokens
     request_number += 1
 
+    # Обновляем глобальную статистику по количеству запросов и использованных токенов
     data["tokens"] += request_tokens
     data["requests"] += 1
 
-    # записываем инфу о количестве запросов и токенах
+    # Записываем инфу о количестве запросов и токенах в файл
     with open(filename, "w") as f:
         json.dump(data, f)
 
+    # Считаем стоимость запроса в центах
     request_price = request_tokens * price_cents
+
     # формируем лог работы для юзера
     user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 4)}. " \
                f"\nОбщая стоимость сессии: ¢{round(session_tokens * price_cents, 4)}"
@@ -79,20 +85,20 @@ def handle_message(message):
     # Send the response back to the user
     bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
 
-    # формируем лог работы для админа
+    # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} токенов за ¢{round(request_price, 4)},"
                  f" всего {session_tokens} за ¢{round(session_tokens * price_cents, 4)},"
                  f" {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
                  f"\n{data}, ¢{round(data['tokens']*price_cents, 4)}")
 
-    # пишем лог работы в консоль
+    # Пишем лог работы в консоль
     print(admin_log)
 
-    # отправляем лог работы админу в тг
+    # Отправляем лог работы админу в тг
     if message.chat.id != admin_chat_id:
         bot.send_message(admin_chat_id, admin_log)
 
 
 # Start the bot
 print("---работаем---")
-bot.polling()
+bot.infinity_polling()
