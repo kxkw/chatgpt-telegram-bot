@@ -94,4 +94,5 @@ def handle_message(message):
 
 
 # Start the bot
+print("---работаем---")
 bot.polling()
