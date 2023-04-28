@@ -79,20 +79,20 @@ def handle_message(message):
     request_price = request_tokens * price_cents
 
     # формируем лог работы для юзера
-    user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 4)}. " \
-               f"\nОбщая стоимость сессии: ¢{round(session_tokens * price_cents, 4)}"
+    user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 3)}. " \
+               f"\nОбщая стоимость сессии: ¢{round(session_tokens * price_cents, 3)}"
 
     # Send the response back to the user
     bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
 
     # Формируем лог работы для админа
-    admin_log = (f"Запрос {request_number}: {request_tokens} токенов за ¢{round(request_price, 4)},"
-                 f" всего {session_tokens} за ¢{round(session_tokens * price_cents, 4)},"
-                 f" {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
-                 f"\n{data}, ¢{round(data['tokens']*price_cents, 4)}")
+    admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
+                 f"Сессия: {session_tokens} за ¢{round(session_tokens * price_cents, 3)}\n"
+                 f"Юзер: {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
+                 f"\n{data} ¢{round(data['tokens']*price_cents, 3)}")
 
     # Пишем лог работы в консоль
-    print(admin_log)
+    print("\n"+admin_log)
 
     # Отправляем лог работы админу в тг
     if message.chat.id != admin_chat_id:
