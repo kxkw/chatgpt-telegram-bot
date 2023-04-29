@@ -44,6 +44,16 @@ session_tokens = 0
 request_number = 0
 
 
+# Define the handler for the /stop command
+@bot.message_handler(commands=["stop"])
+def handle_stop_command(message):
+    if message.chat.id == admin_chat_id:
+        bot.reply_to(message, "Stopping the script...")
+        bot.stop_polling()
+    else:
+        bot.reply_to(message, "Только админ может останавливать бота")
+
+
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
@@ -89,10 +99,10 @@ def handle_message(message):
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * price_cents, 3)}\n"
                  f"Юзер: {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
-                 f"\n{data} ¢{round(data['tokens']*price_cents, 3)}")
+                 f"\n{data} ¢{round(data['tokens'] * price_cents, 3)}")
 
     # Пишем лог работы в консоль
-    print("\n"+admin_log)
+    print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
     if message.chat.id != admin_chat_id:
@@ -102,3 +112,6 @@ def handle_message(message):
 # Start the bot
 print("---работаем---")
 bot.infinity_polling()
+
+# Уведомляем админа об успешном завершении работы
+bot.send_message(admin_chat_id, "Бот остановлен")
