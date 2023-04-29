@@ -57,20 +57,22 @@ def handle_stop_command(message):
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    global session_tokens
-    global request_number
-    global prompt
-    global data
+    global session_tokens, request_number, prompt, data
 
     # Send the user's message to OpenAI API and get the response. System message is for chat context (in the future)
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        max_tokens=3000,
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": message.text},
-        ]
-    )
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            max_tokens=3000,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": message.text},
+            ]
+        )
+    except openai.error.RateLimitError:
+        print("\nЛимит запросов!")
+        bot.send_message(message.chat.id, "Превышен лимит запросов. Пожалуйста, попробуйте секунд через 20")
+        return
 
     # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
