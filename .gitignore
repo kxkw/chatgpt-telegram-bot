@@ -1,2 +1,22 @@
 /.env
 /data.json
+
+# Unrevisioned files from the project
+/.idea/.gitignore
+/.idea/.name
+/.idea/chatgpt-telegram-bot.iml
+/.idea/jsonSchemas.xml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/inspectionProfiles/Project_Default.xml
+/.idea/vcs.xml
+
+# Next lines is from PyCharm specific .gitignore template
+# User-specific stuff
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
