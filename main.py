@@ -44,6 +44,12 @@ session_tokens = 0
 request_number = 0
 
 
+# Define the handler for the /start command
+@bot.message_handler(commands=["start"])
+def handle_stop_command(message):
+    bot.send_message(message.chat.id, "Привет, я Магдыч!")
+
+
 # Define the handler for the /stop command
 @bot.message_handler(commands=["stop"])
 def handle_stop_command(message):
