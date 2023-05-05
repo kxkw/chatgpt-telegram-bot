@@ -35,7 +35,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 
 # Получаем чат_айди админа, которому в лс будут приходить логи
-admin_chat_id = int(os.getenv("ADMIN_CHAT_ID"))
+admin_id = int(os.getenv("ADMIN_ID"))
 
 price_cents = price_1k / 10
 
@@ -53,7 +53,7 @@ def handle_stop_command(message):
 # Define the handler for the /stop command
 @bot.message_handler(commands=["stop"])
 def handle_stop_command(message):
-    if message.chat.id == admin_chat_id:
+    if message.from_user.id == admin_id:
         bot.reply_to(message, "Stopping the script...")
         bot.stop_polling()
     else:
@@ -106,15 +106,17 @@ def handle_message(message):
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * price_cents, 3)}\n"
-                 f"Юзер: {message.chat.first_name} {message.chat.last_name} @{message.chat.username} {message.chat.id}"
+                 f"Юзер: {message.from_user.first_name} {message.from_user.last_name} "
+                 f"@{message.from_user.username} {message.from_user.id}\n"
+                 f"Чат: {message.chat.title} {message.chat.id}"
                  f"\n{data} ¢{round(data['tokens'] * price_cents, 3)}")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
-    if message.chat.id != admin_chat_id:
-        bot.send_message(admin_chat_id, admin_log)
+    if message.chat.id != admin_id:
+        bot.send_message(admin_id, admin_log)
 
 
 # Start the bot
@@ -122,4 +124,4 @@ print("---работаем---")
 bot.infinity_polling()
 
 # Уведомляем админа об успешном завершении работы
-bot.send_message(admin_chat_id, "Бот остановлен")
+bot.send_message(admin_id, "Бот остановлен")
