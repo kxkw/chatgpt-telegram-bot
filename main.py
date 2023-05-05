@@ -101,7 +101,10 @@ def handle_message(message):
                f"\nОбщая стоимость сессии: ¢{round(session_tokens * price_cents, 3)}"
 
     # Send the response back to the user
-    bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
+    if message.chat.type == "private":
+        bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
+    else:
+        bot.reply_to(message, response.choices[0].message.content + user_log)
 
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
