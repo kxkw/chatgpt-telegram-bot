@@ -3,26 +3,12 @@ import openai
 from dotenv.main import load_dotenv
 import json
 import os
+import datetime
 
 
 prompt = "You are a helpful assistant."  # "You are Marv - a sarcastic reluctant assistant."
 price_1k = 0.002  # price per 1k rokens in USD
-
-
-# File with global token usage data
-filename = "data.json"
-default_data = {"requests": 0, "tokens": 0}  # Default values for the JSON file
-
-# Check if the file exists
-if os.path.isfile(filename):
-    # Read the contents of the file
-    with open(filename, "r") as file:
-        data = json.load(file)
-else:
-    # Create the file with default values
-    with open(filename, "w") as file:
-        json.dump(default_data, file)
-    data = default_data
+date_format = "%d-%m-%Y %H:%M:%S"  # date format %d.%m.%Y %H:%M:%S
 
 
 # load .env file with secrets
@@ -34,9 +20,35 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # Create a new Telebot instance
 bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 
-# Получаем чат_айди админа, которому в лс будут приходить логи
+# Получаем айди админа, которому в лс будут приходить логи
 admin_id = int(os.getenv("ADMIN_ID"))
 
+
+# File with users and global token usage data
+datafile = "data.json"
+
+# Check if the file exists
+if os.path.isfile(datafile):
+    # Read the contents of the file
+    with open(datafile, "r") as file:
+        data = json.load(file)
+
+    # Convert keys to integers (except for the first key)
+    for key in list(data.keys())[1:]:
+        data[int(key)] = data.pop(key)
+else:
+    # Create the file with default values
+    with open(datafile, "w") as file:
+        default_data = {"global": {"requests": 0, "tokens": 0},
+                        admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "07-05-2023 00:00:00"}}
+        json.dump(default_data, file, indent=4)
+    data = default_data
+
+# Default values for new users, who are not in the data file
+default_data = {"requests": 0, "tokens": 0, "balance": 30000, "lastdate": "07-05-2023 00:00:00"}
+
+
+# Calculate the price per token in cents
 price_cents = price_1k / 10
 
 # Session token and request counters
@@ -65,6 +77,15 @@ def handle_stop_command(message):
 def handle_message(message):
     global session_tokens, request_number, prompt, data
 
+    # Если пользователя нет в базе, то добавляем его с дефолтными значениями
+    if message.from_user.id not in data:
+        data[message.from_user.id] = default_data
+
+    # Проверяем, есть ли у пользователя токены на балансе
+    if data[message.from_user.id]["balance"] <= 0:
+        bot.send_message(message.chat.id, "У вас закончились токены. Пополните баланс")
+        return
+
     # Send the user's message to OpenAI API and get the response. System message is for chat context (in the future)
     try:
         response = openai.ChatCompletion.create(
@@ -86,12 +107,21 @@ def handle_message(message):
     request_number += 1
 
     # Обновляем глобальную статистику по количеству запросов и использованных токенов
-    data["tokens"] += request_tokens
-    data["requests"] += 1
+    data["global"]["tokens"] += request_tokens
+    data["global"]["requests"] += 1
+
+    # Если юзер не админ, то списываем токены с баланса
+    if message.from_user.id != admin_id:
+        data[message.from_user.id]["balance"] -= request_tokens
+
+    # Обновляем данные юзера по количеству запросов, использованных токенов и дате последнего запроса
+    data[message.from_user.id]["tokens"] += request_tokens
+    data[message.from_user.id]["requests"] += 1
+    data[message.from_user.id]["lastdate"] = datetime.datetime.now().strftime(date_format)
 
     # Записываем инфу о количестве запросов и токенах в файл
-    with open(filename, "w") as f:
-        json.dump(data, f)
+    with open(datafile, "w") as f:
+        json.dump(data, f, indent=4)
 
     # Считаем стоимость запроса в центах
     request_price = request_tokens * price_cents
@@ -112,7 +142,7 @@ def handle_message(message):
                  f"Юзер: {message.from_user.first_name} {message.from_user.last_name} "
                  f"@{message.from_user.username} {message.from_user.id}\n"
                  f"Чат: {message.chat.title} {message.chat.id}"
-                 f"\n{data} ¢{round(data['tokens'] * price_cents, 3)}")
+                 f"\n{data['global']} ¢{round(data['global']['tokens'] * price_cents, 3)}")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
