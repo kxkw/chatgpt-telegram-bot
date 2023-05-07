@@ -166,7 +166,7 @@ def handle_message(message):
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * price_cents, 3)}\n"
-                 f"Юзер: {message.from_user.first_name} {message.from_user.last_name} "
+                 f"Юзер: {message.from_user.full_name} "
                  f"@{message.from_user.username} {message.from_user.id}\n"
                  f"Чат: {message.chat.title} {message.chat.id}"
                  f"\n{data['global']} ¢{round(data['global']['tokens'] * price_cents, 3)}")
