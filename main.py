@@ -103,8 +103,10 @@ def handle_message(message):
     # Если пользователя нет в базе, то добавляем его с дефолтными значениями
     if message.from_user.id not in data:
         data[message.from_user.id] = default_data.copy()
-        print(f"\nНовый пользователь: {message.from_user.first_name} "
-              f"{message.from_user.last_name} @{message.from_user.username} {message.from_user.id}")
+        new_user_string = f"\nНовый пользователь: {message.from_user.full_name} " \
+                          f"@{message.from_user.username} {message.from_user.id}"
+        print(new_user_string)
+        bot.send_message(admin_id, new_user_string)
 
     # Проверяем, есть ли у пользователя токены на балансе
     if data[message.from_user.id]["balance"] <= 0:
