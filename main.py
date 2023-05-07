@@ -72,6 +72,29 @@ def handle_stop_command(message):
         bot.reply_to(message, "Только админ может останавливать бота")
 
 
+# Define the handler for the /balance command
+@bot.message_handler(commands=["balance"])
+def handle_balance_command(message):
+    if message.from_user.id not in data:
+        bot.reply_to(message, "Вы не зарегистрированы в системе")
+        return
+    balance = data[message.from_user.id]["balance"]
+    bot.reply_to(message, f"Ваш баланс: {balance} токенов")
+
+
+# Define the handler for the /stats command
+@bot.message_handler(commands=["stats"])
+def handle_stats_command(message):
+    if message.from_user.id not in data:
+        bot.reply_to(message, "Вы не зарегистрированы в системе")  # TODO: обернуть в функцию все повторения
+        return
+    user_stats = data[message.from_user.id]["requests"], \
+        data[message.from_user.id]["tokens"], data[message.from_user.id]["lastdate"]
+    bot.reply_to(message, f"Запросов: {user_stats[0]}\n"
+                          f"Токенов использовано: {user_stats[1]}\n"
+                          f"Последний запрос: {user_stats[2]}")
+
+
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
