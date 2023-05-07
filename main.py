@@ -58,8 +58,24 @@ request_number = 0
 
 # Define the handler for the /start command
 @bot.message_handler(commands=["start"])
-def handle_stop_command(message):
-    bot.send_message(message.chat.id, "Привет, я Магдыч!")
+def handle_start_command(message):
+    welcome_string = f"{message.from_user.first_name}, с подключением 🤝\n\n" \
+                   f"На твой баланс зачислено 30к токенов!\n\n" \
+                   f"Полезные команды: \n/balance - баланс\n/stats - статистика\n"
+    bot.send_message(message.chat.id, welcome_string)
+
+    # Если пользователя нет в базе, то добавляем его с дефолтными значениями
+    if message.from_user.id not in data:
+        data[message.from_user.id] = default_data.copy()
+
+        # Записываем инфу о новом пользователе в файл
+        with open(datafile, "w") as f:
+            json.dump(data, f, indent=4)
+
+        new_user_string = f"\nНовый пользователь: {message.from_user.full_name} " \
+                          f"@{message.from_user.username} {message.from_user.id}"
+        print(new_user_string)
+        bot.send_message(admin_id, new_user_string)
 
 
 # Define the handler for the /stop command
@@ -76,7 +92,7 @@ def handle_stop_command(message):
 @bot.message_handler(commands=["balance"])
 def handle_balance_command(message):
     if message.from_user.id not in data:
-        bot.reply_to(message, "Вы не зарегистрированы в системе")
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
         return
     balance = data[message.from_user.id]["balance"]
     bot.reply_to(message, f"Ваш баланс: {balance} токенов")
@@ -86,7 +102,7 @@ def handle_balance_command(message):
 @bot.message_handler(commands=["stats"])
 def handle_stats_command(message):
     if message.from_user.id not in data:
-        bot.reply_to(message, "Вы не зарегистрированы в системе")  # TODO: обернуть в функцию все повторения
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")  # TODO: обернуть в функцию все повторения
         return
     user_stats = data[message.from_user.id]["requests"], \
         data[message.from_user.id]["tokens"], data[message.from_user.id]["lastdate"]
@@ -107,6 +123,9 @@ def handle_message(message):
                           f"@{message.from_user.username} {message.from_user.id}"
         print(new_user_string)
         bot.send_message(admin_id, new_user_string)
+        # Записываем инфу о новом пользователе в файл TODO: обернуть в функцию все повторения
+        with open(datafile, "w") as f:
+            json.dump(data, f, indent=4)
 
     # Проверяем, есть ли у пользователя токены на балансе
     if data[message.from_user.id]["balance"] <= 0:
