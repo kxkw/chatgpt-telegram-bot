@@ -30,19 +30,19 @@ datafile = "data.json"
 # Check if the file exists
 if os.path.isfile(datafile):
     # Read the contents of the file
-    with open(datafile, "r") as file:
-        data = json.load(file)
+    with open(datafile, "r") as f:
+        data = json.load(f)
 
     # Convert keys to integers (except for the first key)
     for key in list(data.keys())[1:]:
         data[int(key)] = data.pop(key)
 else:
     # Create the file with default values
-    with open(datafile, "w") as file:
-        default_data = {"global": {"requests": 0, "tokens": 0},
-                        admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "07-05-2023 00:00:00"}}
-        json.dump(default_data, file, indent=4)
-    data = default_data.copy()
+    with open(datafile, "w") as f:
+        data = {"global": {"requests": 0, "tokens": 0},
+                admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "07-05-2023 00:00:00"}}
+        json.dump(data, f, indent=4)
+
 
 # Default values for new users, who are not in the data file
 default_data = {"requests": 0, "tokens": 0, "balance": 30000, "lastdate": "07-05-2023 00:00:00"}
