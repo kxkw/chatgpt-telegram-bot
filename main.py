@@ -85,18 +85,20 @@ def update_data_file() -> None:
 # Define the handler for the /start command
 @bot.message_handler(commands=["start"])
 def handle_start_command(message):
-    welcome_string = f"{message.from_user.first_name}, с подключением 🤝\n\n" \
-                     f"На твой баланс зачислено 30к токенов!\n\n" \
-                     f"Полезные команды: \n/balance - баланс\n/stats - статистика\n"
-    bot.send_message(message.chat.id, welcome_string)
+    user_id = message.from_user.id
 
-    # Если пользователя нет в базе, то добавляем его с дефолтными значениями
-    if message.from_user.id not in data:
-        data[message.from_user.id] = default_data.copy()
+    # Если юзер уже есть в базе, то просто здороваемся и выходим, иначе добавляем его в базу
+    if is_user_exists(user_id):
+        bot.send_message(message.chat.id, "Магдыч готов к работе 💪")  # мб выдавать случайное приветствие из пула
+        return
+    else:
+        add_new_user(user_id)
+        update_json_file(data)
 
-        # Записываем инфу о новом пользователе в файл
-        with open(datafile, "w") as f:
-            json.dump(data, f, indent=4)
+        welcome_string = f"{message.from_user.first_name}, с подключением 🤝\n\n" \
+                         f"На твой баланс зачислено 30к токенов 🤑\n\n" \
+                         f"Полезные команды: \n/balance - баланс\n/stats - статистика\n"
+        bot.send_message(message.chat.id, welcome_string)
 
         new_user_string = f"\nНовый пользователь: {message.from_user.full_name} " \
                           f"@{message.from_user.username} {message.from_user.id}"
