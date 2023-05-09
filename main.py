@@ -39,8 +39,13 @@ def is_user_exists(user_id: int) -> bool:
 
 
 # Function to add new user to the data file
-def add_new_user(user_id: int) -> None:
+def add_new_user(user_id: int, name: str, username: str) -> None:
     data[user_id] = default_data.copy()
+    data[user_id]["name"] = name
+    if username is not None:
+        data[user_id]["username"] = '@'+username
+    else:
+        data[user_id]["username"] = "None"
 
 
 # Function to update the JSON file with relevant data
@@ -49,7 +54,7 @@ def update_json_file(new_data) -> None:
         json.dump(new_data, file, indent=4)
 
 
-"""======================SOME_CODE======================="""  # kek
+"""========================SETUP========================="""
 
 
 # Check if the file exists
@@ -63,12 +68,13 @@ if os.path.isfile(datafile):
         data[int(key)] = data.pop(key)
 else:
     data = {"global": {"requests": 0, "tokens": 0},
-            admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "07-05-2023 00:00:00"}}
+            admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "01-05-2023 00:00:00"}}
     # Create the file with default values
     update_json_file(data)
 
 # Default values for new users, who are not in the data file
-default_data = {"requests": 0, "tokens": 0, "balance": 30000, "lastdate": "07-05-2023 00:00:00"}
+default_data = {"requests": 0, "tokens": 0, "balance": 30000,
+                "name": "None", "username": "None", "lastdate": "11-09-2001 00:00:00"}
 
 
 # Calculate the price per token in cents
@@ -84,25 +90,25 @@ session_tokens, request_number = 0, 0
 # Define the handler for the /start command
 @bot.message_handler(commands=["start"])
 def handle_start_command(message):
-    user_id = message.from_user.id
+    user = message.from_user
 
     # Если юзер уже есть в базе, то просто здороваемся и выходим, иначе добавляем его в базу
-    if is_user_exists(user_id):
+    if is_user_exists(user.id):
         bot.send_message(message.chat.id, "Магдыч готов к работе 💪")  # мб выдавать случайное приветствие из пула
         return
     else:
-        add_new_user(user_id)
+        add_new_user(user.id, user.first_name, user.username)
         update_json_file(data)
 
-        welcome_string = f"{message.from_user.first_name}, с подключением 🤝\n\n" \
+        welcome_string = f"{user.first_name}, с подключением 🤝\n\n" \
                          f"На твой баланс зачислено 30к токенов 🤑\n\n" \
                          f"Полезные команды: \n/balance - баланс\n/stats - статистика\n"
         bot.send_message(message.chat.id, welcome_string)
 
-        new_user_log_string = f"\nНовый пользователь: {message.from_user.full_name} " \
-                              f"@{message.from_user.username} {message.from_user.id}"
-        print(new_user_log_string)
-        bot.send_message(admin_id, new_user_log_string)
+        new_user_log = f"\nНовый пользователь: {user.full_name} " \
+                       f"@{user.username} {user.id}"
+        print(new_user_log)
+        bot.send_message(admin_id, new_user_log)
 
 
 # Define the handler for the /stop command
@@ -147,14 +153,14 @@ def handle_stats_command(message):
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     global session_tokens, request_number, prompt, data
-    user_id = message.from_user.id
+    user = message.from_user
 
     # Если пользователя нет в базе, то добавляем его с дефолтными значениями
-    if not is_user_exists(user_id):
-        add_new_user(user_id)
+    if not is_user_exists(user.id):
+        add_new_user(user.id, user.first_name, user.username)
 
-        new_user_string = f"\nНовый пользователь: {message.from_user.full_name} " \
-                          f"@{message.from_user.username} {user_id}"
+        new_user_string = f"\nНовый пользователь: {user.full_name} " \
+                          f"@{user.username} {user.id}"
         print(new_user_string)
         bot.send_message(admin_id, new_user_string)
 
@@ -162,7 +168,7 @@ def handle_message(message):
         update_json_file(data)
 
     # Проверяем, есть ли у пользователя токены на балансе
-    if data[user_id]["balance"] <= 0:
+    if data[user.id]["balance"] <= 0:
         bot.reply_to(message, "У вас закончились токены. Пополните баланс")
         return
 
@@ -191,13 +197,13 @@ def handle_message(message):
     data["global"]["requests"] += 1
 
     # Если юзер не админ, то списываем токены с баланса
-    if user_id != admin_id:
-        data[user_id]["balance"] -= request_tokens
+    if user.id != admin_id:
+        data[user.id]["balance"] -= request_tokens
 
     # Обновляем данные юзера по количеству запросов, использованных токенов и дате последнего запроса
-    data[user_id]["tokens"] += request_tokens
-    data[user_id]["requests"] += 1
-    data[user_id]["lastdate"] = datetime.datetime.now().strftime(date_format)
+    data[user.id]["tokens"] += request_tokens
+    data[user.id]["requests"] += 1
+    data[user.id]["lastdate"] = datetime.datetime.now().strftime(date_format)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
@@ -218,8 +224,8 @@ def handle_message(message):
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * price_cents, 3)}\n"
-                 f"Юзер: {message.from_user.full_name} "
-                 f"@{message.from_user.username} {user_id}\n"
+                 f"Юзер: {user.full_name} "
+                 f"@{user.username} {user.id}\n"
                  f"Чат: {message.chat.title} {message.chat.id}"
                  f"\n{data['global']} ¢{round(data['global']['tokens'] * price_cents, 3)}")
 
