@@ -23,9 +23,34 @@ bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 # Получаем айди админа, которому в лс будут приходить логи
 admin_id = int(os.getenv("ADMIN_ID"))
 
-
 # File with users and global token usage data
 datafile = "data.json"
+
+
+"""======================FUNCTIONS======================="""
+
+
+# Function to check if the user is in the data file
+def is_user_exists(user_id: int) -> bool:
+    if user_id in data:
+        return True
+    else:
+        return False
+
+
+# Function to add new user to the data file
+def add_new_user(user_id: int) -> None:
+    data[user_id] = default_data.copy()
+
+
+# Function to update the JSON file with relevant data
+def update_json_file(new_data) -> None:
+    with open(datafile, "w") as file:
+        json.dump(new_data, file, indent=4)
+
+
+"""======================SOME_CODE======================="""  # kek
+
 
 # Check if the file exists
 if os.path.isfile(datafile):
@@ -54,30 +79,6 @@ price_cents = price_1k / 10
 # Session token and request counters
 session_tokens, request_number = 0, 0
 
-
-"""======================FUNCTIONS======================="""
-
-
-# Function to check if the user is in the data file
-def is_user_exists(user_id: int) -> bool:
-    if user_id in data:
-        return True
-    else:
-        return False
-
-
-# Function to add new user to the data file
-def add_new_user(user_id: int) -> None:
-    data[user_id] = default_data.copy()
-
-
-# Function to update the data file
-def update_data_file() -> None:
-    with open(datafile, "w") as file:
-        json.dump(data, file, indent=4)
-
-
-#
 
 """=======================HANDLERS======================="""
 
