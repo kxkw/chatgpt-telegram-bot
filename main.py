@@ -8,7 +8,7 @@ import datetime
 
 prompt = "You are a helpful assistant."  # "You are Marv - a sarcastic reluctant assistant."
 price_1k = 0.002  # price per 1k rokens in USD
-date_format = "%d-%m-%Y %H:%M:%S"  # date format %d.%m.%Y %H:%M:%S
+date_format = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
 
 # load .env file with secrets
