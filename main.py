@@ -131,14 +131,16 @@ def handle_balance_command(message):
 # Define the handler for the /stats command
 @bot.message_handler(commands=["stats"])
 def handle_stats_command(message):
-    if message.from_user.id not in data:
+    user_id = message.from_user.id
+
+    # Если юзер есть в базе, то выдаем его статистику, иначе просим его зарегистрироваться
+    if is_user_exists(user_id):
+        user_stats = data[user_id]["requests"], data[user_id]["tokens"], data[user_id]["lastdate"]
+        bot.reply_to(message, f"Запросов: {user_stats[0]}\n"
+                              f"Токенов использовано: {user_stats[1]}\n"
+                              f"Последний запрос: {user_stats[2]}")
+    else:
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
-        return
-    user_stats = data[message.from_user.id]["requests"], \
-        data[message.from_user.id]["tokens"], data[message.from_user.id]["lastdate"]
-    bot.reply_to(message, f"Запросов: {user_stats[0]}\n"
-                          f"Токенов использовано: {user_stats[1]}\n"
-                          f"Последний запрос: {user_stats[2]}")
 
 
 # Define the message handler for incoming messages
