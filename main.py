@@ -147,21 +147,23 @@ def handle_stats_command(message):
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     global session_tokens, request_number, prompt, data
+    user_id = message.from_user.id
 
     # Если пользователя нет в базе, то добавляем его с дефолтными значениями
-    if message.from_user.id not in data:
-        data[message.from_user.id] = default_data.copy()
+    if not is_user_exists(user_id):
+        add_new_user(user_id)
+
         new_user_string = f"\nНовый пользователь: {message.from_user.full_name} " \
-                          f"@{message.from_user.username} {message.from_user.id}"
+                          f"@{message.from_user.username} {user_id}"
         print(new_user_string)
         bot.send_message(admin_id, new_user_string)
+
         # Записываем инфу о новом пользователе в файл
-        with open(datafile, "w") as f:
-            json.dump(data, f, indent=4)
+        update_json_file(data)
 
     # Проверяем, есть ли у пользователя токены на балансе
-    if data[message.from_user.id]["balance"] <= 0:
-        bot.send_message(message.chat.id, "У вас закончились токены. Пополните баланс")
+    if data[user_id]["balance"] <= 0:
+        bot.reply_to(message, "У вас закончились токены. Пополните баланс")
         return
 
     # Send the user's message to OpenAI API and get the response. System message is for chat context (in the future)
@@ -176,7 +178,7 @@ def handle_message(message):
         )
     except openai.error.RateLimitError:
         print("\nЛимит запросов!")
-        bot.send_message(message.chat.id, "Превышен лимит запросов. Пожалуйста, попробуйте секунд через 20")
+        bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
         return
 
     # Получаем стоимость запроса по АПИ в токенах
@@ -189,24 +191,23 @@ def handle_message(message):
     data["global"]["requests"] += 1
 
     # Если юзер не админ, то списываем токены с баланса
-    if message.from_user.id != admin_id:
-        data[message.from_user.id]["balance"] -= request_tokens
+    if user_id != admin_id:
+        data[user_id]["balance"] -= request_tokens
 
     # Обновляем данные юзера по количеству запросов, использованных токенов и дате последнего запроса
-    data[message.from_user.id]["tokens"] += request_tokens
-    data[message.from_user.id]["requests"] += 1
-    data[message.from_user.id]["lastdate"] = datetime.datetime.now().strftime(date_format)
+    data[user_id]["tokens"] += request_tokens
+    data[user_id]["requests"] += 1
+    data[user_id]["lastdate"] = datetime.datetime.now().strftime(date_format)
 
     # Записываем инфу о количестве запросов и токенах в файл
-    with open(datafile, "w") as f:
-        json.dump(data, f, indent=4)
+    update_json_file(data)
 
     # Считаем стоимость запроса в центах
     request_price = request_tokens * price_cents
 
     # формируем лог работы для юзера
-    user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 3)}. " \
-               f"\nОбщая стоимость сессии: ¢{round(session_tokens * price_cents, 3)}"
+    user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 3)} " \
+               f"\nБип-боп"
 
     # Send the response back to the user
     if message.chat.type == "private":
@@ -218,7 +219,7 @@ def handle_message(message):
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * price_cents, 3)}\n"
                  f"Юзер: {message.from_user.full_name} "
-                 f"@{message.from_user.username} {message.from_user.id}\n"
+                 f"@{message.from_user.username} {user_id}\n"
                  f"Чат: {message.chat.title} {message.chat.id}"
                  f"\n{data['global']} ¢{round(data['global']['tokens'] * price_cents, 3)}")
 
