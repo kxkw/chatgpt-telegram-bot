@@ -99,10 +99,10 @@ def handle_start_command(message):
                          f"Полезные команды: \n/balance - баланс\n/stats - статистика\n"
         bot.send_message(message.chat.id, welcome_string)
 
-        new_user_string = f"\nНовый пользователь: {message.from_user.full_name} " \
-                          f"@{message.from_user.username} {message.from_user.id}"
-        print(new_user_string)
-        bot.send_message(admin_id, new_user_string)
+        new_user_log_string = f"\nНовый пользователь: {message.from_user.full_name} " \
+                              f"@{message.from_user.username} {message.from_user.id}"
+        print(new_user_log_string)
+        bot.send_message(admin_id, new_user_log_string)
 
 
 # Define the handler for the /stop command
