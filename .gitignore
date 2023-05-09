@@ -1,5 +1,6 @@
 /.env
 /data.json
+/todo.py
 
 # Unrevisioned files from the project
 /.idea/.gitignore
