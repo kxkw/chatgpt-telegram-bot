@@ -118,11 +118,14 @@ def handle_stop_command(message):
 # Define the handler for the /balance command
 @bot.message_handler(commands=["balance"])
 def handle_balance_command(message):
-    if message.from_user.id not in data:
+    user_id = message.from_user.id
+
+    # Если юзер есть в базе, то выдаем его баланс, иначе просим его зарегистрироваться
+    if is_user_exists(user_id):
+        balance = data[user_id]["balance"]
+        bot.reply_to(message, f"Ваш баланс: {balance} токенов")
+    else:
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
-        return
-    balance = data[message.from_user.id]["balance"]
-    bot.reply_to(message, f"Ваш баланс: {balance} токенов")
 
 
 # Define the handler for the /stats command
