@@ -62,12 +62,10 @@ if os.path.isfile(datafile):
     for key in list(data.keys())[1:]:
         data[int(key)] = data.pop(key)
 else:
+    data = {"global": {"requests": 0, "tokens": 0},
+            admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "07-05-2023 00:00:00"}}
     # Create the file with default values
-    with open(datafile, "w") as f:
-        data = {"global": {"requests": 0, "tokens": 0},
-                admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "07-05-2023 00:00:00"}}
-        json.dump(data, f, indent=4)
-
+    update_json_file(data)
 
 # Default values for new users, who are not in the data file
 default_data = {"requests": 0, "tokens": 0, "balance": 30000, "lastdate": "07-05-2023 00:00:00"}
