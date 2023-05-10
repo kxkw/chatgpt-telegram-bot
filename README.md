@@ -19,6 +19,9 @@ ADMIN_CHAT_ID = 123456789
 2. `TELEGRAM_API_KEY` - API-токен от бота в Telegram
 3. `ADMIN_CHAT_ID` - ID админа в Telegram
 
+`example.env` - это образец `.env` файла. 
+Достаточно заполнить его своими значениями и переименовать, чтобы не создавать файл самостоятельно.  
+
 ### Запуск бота
 `python main.py`  
 
