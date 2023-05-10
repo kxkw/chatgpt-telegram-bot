@@ -7,8 +7,8 @@ import datetime
 
 
 prompt = "You are a helpful assistant."  # "You are Marv - a sarcastic reluctant assistant."
-price_1k = 0.002  # price per 1k rokens in USD
-date_format = "%d.%m.%Y %H:%M:%S"  # date format for logging
+PRICE_1K = 0.002  # price per 1k rokens in USD
+DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
 
 # load .env file with secrets
@@ -21,10 +21,10 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 
 # Получаем айди админа, которому в лс будут приходить логи
-admin_id = int(os.getenv("ADMIN_ID"))
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 # File with users and global token usage data
-datafile = "data.json"
+DATAFILE = "data.json"
 
 
 """======================FUNCTIONS======================="""
@@ -40,7 +40,7 @@ def is_user_exists(user_id: int) -> bool:
 
 # Function to add new user to the data file
 def add_new_user(user_id: int, name: str, username: str) -> None:
-    data[user_id] = default_data.copy()
+    data[user_id] = DEFAULT_DATA.copy()
     data[user_id]["name"] = name
     if username is not None:
         data[user_id]["username"] = '@'+username
@@ -50,7 +50,7 @@ def add_new_user(user_id: int, name: str, username: str) -> None:
 
 # Function to update the JSON file with relevant data
 def update_json_file(new_data) -> None:
-    with open(datafile, "w") as file:
+    with open(DATAFILE, "w") as file:
         json.dump(new_data, file, indent=4)
 
 
@@ -58,9 +58,9 @@ def update_json_file(new_data) -> None:
 
 
 # Check if the file exists
-if os.path.isfile(datafile):
+if os.path.isfile(DATAFILE):
     # Read the contents of the file
-    with open(datafile, "r") as f:
+    with open(DATAFILE, "r") as f:
         data = json.load(f)
 
     # Convert keys to integers (except for the first key)
@@ -68,17 +68,17 @@ if os.path.isfile(datafile):
         data[int(key)] = data.pop(key)
 else:
     data = {"global": {"requests": 0, "tokens": 0},
-            admin_id: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "01-05-2023 00:00:00"}}
+            ADMIN_ID: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "01-05-2023 00:00:00"}}
     # Create the file with default values
     update_json_file(data)
 
 # Default values for new users, who are not in the data file
-default_data = {"requests": 0, "tokens": 0, "balance": 30000,
+DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": 30000,
                 "name": "None", "username": "None", "lastdate": "11-09-2001 00:00:00"}
 
 
 # Calculate the price per token in cents
-price_cents = price_1k / 10
+PRICE_CENTS = PRICE_1K / 10
 
 # Session token and request counters
 session_tokens, request_number = 0, 0
@@ -108,13 +108,13 @@ def handle_start_command(message):
         new_user_log = f"\nНовый пользователь: {user.full_name} " \
                        f"@{user.username} {user.id}"
         print(new_user_log)
-        bot.send_message(admin_id, new_user_log)
+        bot.send_message(ADMIN_ID, new_user_log)
 
 
 # Define the handler for the /stop command
 @bot.message_handler(commands=["stop"])
 def handle_stop_command(message):
-    if message.from_user.id == admin_id:
+    if message.from_user.id == ADMIN_ID:
         bot.reply_to(message, "Stopping the script...")
         bot.stop_polling()
     else:
@@ -162,7 +162,7 @@ def handle_message(message):
         new_user_string = f"\nНовый пользователь: {user.full_name} " \
                           f"@{user.username} {user.id}"
         print(new_user_string)
-        bot.send_message(admin_id, new_user_string)
+        bot.send_message(ADMIN_ID, new_user_string)
 
         # Записываем инфу о новом пользователе в файл
         update_json_file(data)
@@ -197,19 +197,19 @@ def handle_message(message):
     data["global"]["requests"] += 1
 
     # Если юзер не админ, то списываем токены с баланса
-    if user.id != admin_id:
+    if user.id != ADMIN_ID:
         data[user.id]["balance"] -= request_tokens
 
     # Обновляем данные юзера по количеству запросов, использованных токенов и дате последнего запроса
     data[user.id]["tokens"] += request_tokens
     data[user.id]["requests"] += 1
-    data[user.id]["lastdate"] = datetime.datetime.now().strftime(date_format)
+    data[user.id]["lastdate"] = datetime.datetime.now().strftime(DATE_FORMAT)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
 
     # Считаем стоимость запроса в центах
-    request_price = request_tokens * price_cents
+    request_price = request_tokens * PRICE_CENTS
 
     # формируем лог работы для юзера
     user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 3)} " \
@@ -223,18 +223,18 @@ def handle_message(message):
 
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
-                 f"Сессия: {session_tokens} за ¢{round(session_tokens * price_cents, 3)}\n"
+                 f"Сессия: {session_tokens} за ¢{round(session_tokens * PRICE_CENTS, 3)}\n"
                  f"Юзер: {user.full_name} "
                  f"@{user.username} {user.id}\n"
                  f"Чат: {message.chat.title} {message.chat.id}"
-                 f"\n{data['global']} ¢{round(data['global']['tokens'] * price_cents, 3)}")
+                 f"\n{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
-    if message.chat.id != admin_id:
-        bot.send_message(admin_id, admin_log)
+    if message.chat.id != ADMIN_ID:
+        bot.send_message(ADMIN_ID, admin_log)
 
 
 # Start the bot
@@ -242,4 +242,4 @@ print("---работаем---")
 bot.infinity_polling()
 
 # Уведомляем админа об успешном завершении работы
-bot.send_message(admin_id, "Бот остановлен")
+bot.send_message(ADMIN_ID, "Бот остановлен")
