@@ -174,6 +174,11 @@ def handle_message(message):
     global session_tokens, request_number, prompt, data
     user = message.from_user
 
+    # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
+    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id:
+        print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
+        return
+
     # Если пользователя нет в базе, то добавляем его с дефолтными значениями
     if not is_user_exists(user.id):
         add_new_user(user.id, user.first_name, user.username)
