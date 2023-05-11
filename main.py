@@ -54,6 +54,25 @@ def update_json_file(new_data) -> None:
         json.dump(new_data, file, indent=4)
 
 
+# Function to call the OpenAI API and get the response
+def call_chatgpt(user_request: str, prev_answer=None):
+    messages = [{"role": "system", "content": prompt}]
+
+    if prev_answer is not None:
+        messages.extend([{"role": "assistant", "content": prev_answer},
+                         {"role": "user", "content": user_request}])
+        print("\nЗапрос с контекстом 🤩")
+    else:
+        messages.append({"role": "user", "content": user_request})
+        print("\nЗапрос без контекста")
+
+    return openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        max_tokens=3000,
+        messages=messages
+    )
+
+
 """========================SETUP========================="""
 
 
@@ -172,16 +191,13 @@ def handle_message(message):
         bot.reply_to(message, "У вас закончились токены. Пополните баланс")
         return
 
-    # Send the user's message to OpenAI API and get the response. System message is for chat context (in the future)
+    # Send the user's message to OpenAI API and get the response
+    # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            max_tokens=3000,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": message.text},
-            ]
-        )
+        if message.reply_to_message is not None and message.reply_to_message.from_user.id == bot.get_me().id:
+            response = call_chatgpt(message.text, message.reply_to_message.text)
+        else:
+            response = call_chatgpt(message.text)
     except openai.error.RateLimitError:
         print("\nЛимит запросов!")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
