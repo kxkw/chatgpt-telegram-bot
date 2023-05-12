@@ -6,7 +6,7 @@ import os
 import datetime
 
 
-prompt = "You are a helpful assistant."  # "You are Marv - a sarcastic reluctant assistant."
+DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 PRICE_1K = 0.002  # price per 1k rokens in USD
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
@@ -52,6 +52,33 @@ def add_new_user(user_id: int, name: str, username: str) -> None:
 def update_json_file(new_data) -> None:
     with open(DATAFILE, "w") as file:
         json.dump(new_data, file, indent=4)
+
+
+# Function to get the user's prompt
+def get_user_prompt(user_id: int) -> str:
+    if data[user_id].get("prompt") is None:
+        return DEFAULT_SYSTEM_PROMPT
+    else:
+        return str(data[user_id]["prompt"])
+
+
+# Function to call the OpenAI API and get the response
+def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
+    messages = [{"role": "system", "content": system_prompt}]
+
+    if prev_answer is not None:
+        messages.extend([{"role": "assistant", "content": prev_answer},
+                         {"role": "user", "content": user_request}])
+        print("\nЗапрос с контекстом 🤩")
+    else:
+        messages.append({"role": "user", "content": user_request})
+        print("\nЗапрос без контекста")
+
+    return openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        max_tokens=3000,
+        messages=messages
+    )
 
 
 """========================SETUP========================="""
@@ -102,7 +129,8 @@ def handle_start_command(message):
 
         welcome_string = f"{user.first_name}, с подключением 🤝\n\n" \
                          f"На твой баланс зачислено 30к токенов 🤑\n\n" \
-                         f"Полезные команды: \n/balance - баланс\n/stats - статистика\n"
+                         f"Полезные команды: \n/balance - баланс токенов\n/stats - статистика запросов\n" \
+                         f"/prompt - установить системный промпт\n"
         bot.send_message(message.chat.id, welcome_string)
 
         new_user_log = f"\nНовый пользователь: {user.full_name} " \
@@ -149,11 +177,48 @@ def handle_stats_command(message):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
 
+# Define the handler for the /prompt command
+@bot.message_handler(commands=["prompt"])
+def handle_prompt_command(message):
+    user = message.from_user
+    answer = ""
+
+    prompt = message.text[len("/prompt"):].strip()
+
+    # Если юзер есть в базе, то записываем промпт, иначе просим его зарегистрироваться
+    if is_user_exists(user.id):
+        if prompt:
+            data[user.id]["prompt"] = prompt
+            update_json_file(data)
+            bot.reply_to(message, f"Установлен промпт: `{prompt}`", parse_mode="Markdown")
+            print("\nУстановлен промпт: " + prompt)
+        else:
+            if "prompt" in data[user.id]:
+                answer = f"*Текущий промпт:* `{str(data[user.id]['prompt'])}`\n\n"
+
+            answer += "Системный промпт - это специальное указание, которое будет использоваться ботом вместе "\
+                      "с каждым запросом для придания определенного поведения и стиля ответа. \n\n"\
+                      "Для установки системного промпта напишите команду `/prompt`"\
+                      " и требуемый текст одним сообщением, например: \n\n"\
+                      "`/prompt Ты YodaGPT - AI модель, "\
+                      "которая на все запросы отвечает в стиле Йоды из Star Wars`"
+
+            bot.reply_to(message, answer,  parse_mode="Markdown")
+            print("\nNo text provided.")
+    else:
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    global session_tokens, request_number, prompt, data
+    global session_tokens, request_number, data
     user = message.from_user
+
+    # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
+    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id:
+        print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
+        return
 
     # Если пользователя нет в базе, то добавляем его с дефолтными значениями
     if not is_user_exists(user.id):
@@ -172,16 +237,13 @@ def handle_message(message):
         bot.reply_to(message, "У вас закончились токены. Пополните баланс")
         return
 
-    # Send the user's message to OpenAI API and get the response. System message is for chat context (in the future)
+    # Send the user's message to OpenAI API and get the response
+    # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            max_tokens=3000,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": message.text},
-            ]
-        )
+        if message.reply_to_message is not None and message.reply_to_message.from_user.id == bot.get_me().id:
+            response = call_chatgpt(message.text, message.reply_to_message.text, get_user_prompt(user.id))
+        else:
+            response = call_chatgpt(message.text, system_prompt=get_user_prompt(user.id))
     except openai.error.RateLimitError:
         print("\nЛимит запросов!")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
