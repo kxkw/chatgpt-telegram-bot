@@ -129,8 +129,8 @@ def handle_start_command(message):
 
         welcome_string = f"{user.first_name}, с подключением 🤝\n\n" \
                          f"На твой баланс зачислено 30к токенов 🤑\n\n" \
-                         f"Полезные команды: \n/balance - баланс токенов\n/stats - статистика запросов\n" \
-                         f"/prompt - установить системный промпт\n"
+                         f"Полезные команды:\n/help - список команд\n/balance - баланс токенов\n" \
+                         f"/stats - статистика запросов\n/prompt - установить системный промпт\n"
         bot.send_message(message.chat.id, welcome_string)
 
         new_user_log = f"\nНовый пользователь: {user.full_name} " \
@@ -147,6 +147,16 @@ def handle_stop_command(message):
         bot.stop_polling()
     else:
         bot.reply_to(message, "Только админ может останавливать бота")
+
+
+# Define the handler for the /help command
+@bot.message_handler(commands=["help"])
+def handle_help_command(message):
+    bot.reply_to(message, "Список доступных команд:\n\n"
+                          "/start - регистрация в системе\n/help - список команд (вы здесь)\n\n"
+                          "/balance - баланс токенов\n/stats - статистика запросов\n\n"
+                          "/prompt - установить свой системный промпт\n"
+                          "/reset_prompt - вернуть промпт по умолчанию\n")
 
 
 # Define the handler for the /balance command
