@@ -209,6 +209,25 @@ def handle_prompt_command(message):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
 
+# Define the handler for the /reset_prompt command
+@bot.message_handler(commands=["reset_prompt"])
+def handle_reset_prompt_command(message):
+    user = message.from_user
+
+    # Если юзер есть в базе, то сбрасываем промпт, иначе просим его зарегистрироваться
+    if is_user_exists(user.id):
+        if data[user.id].get("prompt") is not None:
+            del data[user.id]["prompt"]
+            update_json_file(data)
+            bot.reply_to(message, f"Системный промпт сброшен до значения по умолчанию")
+            print("\nСистемный промпт сброшен до значения по умолчанию")
+        else:
+            bot.reply_to(message, f"У вас уже стоит дефолтный промпт!")
+            print("\nУ вас уже стоит дефолтный промпт!")
+    else:
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
