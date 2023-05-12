@@ -129,8 +129,8 @@ def handle_start_command(message):
 
         welcome_string = f"{user.first_name}, с подключением 🤝\n\n" \
                          f"На твой баланс зачислено 30к токенов 🤑\n\n" \
-                         f"Полезные команды: \n/balance - баланс токенов\n/stats - статистика запросов\n" \
-                         f"/prompt - установить системный промпт\n"
+                         f"Полезные команды:\n/help - список команд\n/balance - баланс токенов\n" \
+                         f"/stats - статистика запросов\n/prompt - установить системный промпт\n"
         bot.send_message(message.chat.id, welcome_string)
 
         new_user_log = f"\nНовый пользователь: {user.full_name} " \
@@ -147,6 +147,16 @@ def handle_stop_command(message):
         bot.stop_polling()
     else:
         bot.reply_to(message, "Только админ может останавливать бота")
+
+
+# Define the handler for the /help command
+@bot.message_handler(commands=["help"])
+def handle_help_command(message):
+    bot.reply_to(message, "Список доступных команд:\n\n"
+                          "/start - регистрация в системе\n/help - список команд (вы здесь)\n\n"
+                          "/balance - баланс токенов\n/stats - статистика запросов\n\n"
+                          "/prompt - установить свой системный промпт\n"
+                          "/reset_prompt - вернуть промпт по умолчанию\n")
 
 
 # Define the handler for the /balance command
@@ -205,6 +215,25 @@ def handle_prompt_command(message):
 
             bot.reply_to(message, answer,  parse_mode="Markdown")
             print("\nNo text provided.")
+    else:
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+
+# Define the handler for the /reset_prompt command
+@bot.message_handler(commands=["reset_prompt"])
+def handle_reset_prompt_command(message):
+    user = message.from_user
+
+    # Если юзер есть в базе, то сбрасываем промпт, иначе просим его зарегистрироваться
+    if is_user_exists(user.id):
+        if data[user.id].get("prompt") is not None:
+            del data[user.id]["prompt"]
+            update_json_file(data)
+            bot.reply_to(message, f"Системный промпт сброшен до значения по умолчанию")
+            print("\nСистемный промпт сброшен до значения по умолчанию")
+        else:
+            bot.reply_to(message, f"У вас уже стоит дефолтный промпт!")
+            print("\nУ вас уже стоит дефолтный промпт!")
     else:
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
