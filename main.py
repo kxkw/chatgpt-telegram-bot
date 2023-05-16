@@ -5,6 +5,7 @@ import json
 import os
 import datetime
 
+from telebot.util import extract_arguments
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 PRICE_1K = 0.002  # price per 1k rokens in USD
@@ -193,7 +194,8 @@ def handle_prompt_command(message):
     user = message.from_user
     answer = ""
 
-    prompt = message.text[len("/prompt"):].strip()
+    # Получаем аргументы команды (текст после /prompt)
+    prompt = extract_arguments(message.text)
 
     # Если юзер есть в базе, то записываем промпт, иначе просим его зарегистрироваться
     if is_user_exists(user.id):
