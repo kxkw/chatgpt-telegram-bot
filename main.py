@@ -310,9 +310,9 @@ def handle_message(message):
 
     # Send the response back to the user
     if message.chat.type == "private":
-        bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
+        bot.send_message(message.chat.id, response.choices[0].message.content + user_log, parse_mode="Markdown")
     else:
-        bot.reply_to(message, response.choices[0].message.content + user_log)
+        bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown")
 
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
