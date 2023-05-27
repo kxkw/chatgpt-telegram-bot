@@ -117,6 +117,58 @@ PRICE_CENTS = PRICE_1K / 10
 session_tokens, request_number = 0, 0
 
 
+"""====================ADMIN_COMMANDS===================="""
+
+
+# Define the handler for the admin /data command
+@bot.message_handler(commands=["data"])
+def handle_data_command(message):
+    target_user_string = extract_arguments(message.text)
+    not_found_string = "Пользователь не найден, либо данные введены неверно.\n" \
+                       "Укажите @username или id пользователя после команды `/data`"
+
+    # Проверки на доступность команды
+    if message.from_user.id != ADMIN_ID:  # Если пользователь не админ
+        bot.reply_to(message, "Команда доступна только админу")
+        return
+    elif message.chat.type != "private":  # Если команда вызвана не в личке с ботом (чтобы не скомпрометировать данные)
+        bot.reply_to(message, "Эта команда недоступна в групповых чатах")
+        return
+
+    if target_user_string == '':  # Если аргументов нет, то отправить весь файл
+        bot.send_message(ADMIN_ID, f"Копия файла `{DATAFILE}`:", parse_mode="MARKDOWN")
+        bot.send_document(ADMIN_ID, open(DATAFILE, "rb"))
+        print("\nДанные отправлены админу")
+        return
+
+    elif target_user_string[0] == "@":  # Поиск по @username
+        for user_id in list(data.keys())[2:]:
+            if data[user_id]["username"] == target_user_string:
+                bot.send_message(ADMIN_ID, json.dumps(data[user_id], ensure_ascii=False, indent=4))
+                return
+        bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+
+    elif target_user_string.isdigit():  # Поиск по id пользователя
+        target_user_string = int(target_user_string)
+        if target_user_string in data:
+            bot.send_message(ADMIN_ID, json.dumps(data[target_user_string], ensure_ascii=False, indent=4))
+            return
+        bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+
+    else:
+        bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+
+
+# Define the handler for the /stop command
+@bot.message_handler(commands=["stop"])
+def handle_stop_command(message):
+    if message.from_user.id == ADMIN_ID:
+        bot.reply_to(message, "Stopping the script...")
+        bot.stop_polling()
+    else:
+        bot.reply_to(message, "Только админ может останавливать бота")
+
+
 """=======================HANDLERS======================="""
 
 
@@ -143,16 +195,6 @@ def handle_start_command(message):
                        f"@{user.username} {user.id}"
         print(new_user_log)
         bot.send_message(ADMIN_ID, new_user_log)
-
-
-# Define the handler for the /stop command
-@bot.message_handler(commands=["stop"])
-def handle_stop_command(message):
-    if message.from_user.id == ADMIN_ID:
-        bot.reply_to(message, "Stopping the script...")
-        bot.stop_polling()
-    else:
-        bot.reply_to(message, "Только админ может останавливать бота")
 
 
 # Define the handler for the /help command
