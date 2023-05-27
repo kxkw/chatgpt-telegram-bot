@@ -7,8 +7,12 @@ import datetime
 
 from telebot.util import extract_arguments
 
-DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
-PRICE_1K = 0.002  # price per 1k rokens in USD
+
+MODEL = "gpt-3.5-turbo"
+MAX_REQUEST_TOKENS = 1800
+DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
+
+PRICE_1K = 0.002  # price per 1k tokens in USD
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
 
@@ -24,8 +28,13 @@ bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 # Получаем айди админа, которому в лс будут приходить логи
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
+
 # File with users and global token usage data
 DATAFILE = "data.json"
+
+# Default values for new users, who are not in the data file
+DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": 30000,
+                "name": "None", "username": "None", "lastdate": "11-09-2001 00:00:00"}
 
 
 """======================FUNCTIONS======================="""
@@ -76,8 +85,8 @@ def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYST
         print("\nЗапрос без контекста")
 
     return openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        max_tokens=3000,
+        model=MODEL,
+        max_tokens=MAX_REQUEST_TOKENS,
         messages=messages
     )
 
@@ -99,10 +108,6 @@ else:
             ADMIN_ID: {"requests": 0, "tokens": 0, "balance": 777777, "lastdate": "01-05-2023 00:00:00"}}
     # Create the file with default values
     update_json_file(data)
-
-# Default values for new users, who are not in the data file
-DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": 30000,
-                "name": "None", "username": "None", "lastdate": "11-09-2001 00:00:00"}
 
 
 # Calculate the price per token in cents
