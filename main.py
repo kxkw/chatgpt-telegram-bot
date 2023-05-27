@@ -273,6 +273,9 @@ def handle_message(message):
         bot.reply_to(message, "У вас закончились токены. Пополните баланс")
         return
 
+    # Симулируем эффект набора текста, пока бот получает ответ
+    bot.send_chat_action(message.chat.id, "typing")
+
     # Send the user's message to OpenAI API and get the response
     # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
