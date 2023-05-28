@@ -60,8 +60,8 @@ def add_new_user(user_id: int, name: str, username: str) -> None:
 
 # Function to update the JSON file with relevant data
 def update_json_file(new_data) -> None:
-    with open(DATAFILE, "w") as file:
-        json.dump(new_data, file, indent=4)
+    with open(DATAFILE, "w", encoding='utf-8') as file:
+        json.dump(new_data, file, ensure_ascii=False, indent=4)
 
 
 # Function to get the user's prompt
@@ -97,7 +97,7 @@ def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYST
 # Check if the file exists
 if os.path.isfile(DATAFILE):
     # Read the contents of the file
-    with open(DATAFILE, "r") as f:
+    with open(DATAFILE, "r", encoding='utf-8') as f:
         data = json.load(f)
 
     # Convert keys to integers (except for the first key)
