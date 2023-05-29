@@ -15,7 +15,6 @@ DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 PRICE_1K = 0.002  # price per 1k tokens in USD
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
-
 # load .env file with secrets
 load_dotenv()
 
@@ -44,6 +43,14 @@ DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": 30000,
 def is_user_exists(user_id: int) -> bool:
     if user_id in data:
         return True
+    else:
+        return False
+
+
+# Function to check if the user is in the blacklist
+def is_user_blacklisted(user_id: int) -> bool:
+    if "blacklisted" in data[user_id]:
+        return data[user_id]["blacklisted"]
     else:
         return False
 
@@ -220,6 +227,9 @@ def handle_stop_command(message):
 def handle_start_command(message):
     user = message.from_user
 
+    if is_user_blacklisted(user.id):
+        return
+
     # Если юзер уже есть в базе, то просто здороваемся и выходим, иначе добавляем его в базу
     if is_user_exists(user.id):
         bot.send_message(message.chat.id, "Магдыч готов к работе 💪")  # мб выдавать случайное приветствие из пула
@@ -243,6 +253,10 @@ def handle_start_command(message):
 # Define the handler for the /help command
 @bot.message_handler(commands=["help"])
 def handle_help_command(message):
+
+    if is_user_blacklisted(message.from_user.id):
+        return
+
     bot.reply_to(message, "Список доступных команд:\n\n"
                           "/start - регистрация в системе\n/help - список команд (вы здесь)\n\n"
                           "/balance - баланс токенов\n/stats - статистика запросов\n\n"
@@ -254,6 +268,9 @@ def handle_help_command(message):
 @bot.message_handler(commands=["balance"])
 def handle_balance_command(message):
     user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
 
     # Если юзер есть в базе, то выдаем его баланс, иначе просим его зарегистрироваться
     if is_user_exists(user_id):
@@ -267,6 +284,9 @@ def handle_balance_command(message):
 @bot.message_handler(commands=["stats"])
 def handle_stats_command(message):
     user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
 
     # Если юзер есть в базе, то выдаем его статистику, иначе просим его зарегистрироваться
     if is_user_exists(user_id):
@@ -283,6 +303,9 @@ def handle_stats_command(message):
 def handle_prompt_command(message):
     user = message.from_user
     answer = ""
+
+    if is_user_blacklisted(user.id):
+        return
 
     # Получаем аргументы команды (текст после /prompt)
     prompt = extract_arguments(message.text)
@@ -316,6 +339,9 @@ def handle_prompt_command(message):
 def handle_reset_prompt_command(message):
     user = message.from_user
 
+    if is_user_blacklisted(user.id):
+        return
+
     # Если юзер есть в базе, то сбрасываем промпт, иначе просим его зарегистрироваться
     if is_user_exists(user.id):
         if data[user.id].get("prompt") is not None:
@@ -335,6 +361,9 @@ def handle_reset_prompt_command(message):
 def handle_message(message):
     global session_tokens, request_number, data
     user = message.from_user
+
+    if is_user_blacklisted(user.id):
+        return
 
     # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
     if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id:
