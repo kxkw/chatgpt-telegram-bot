@@ -159,6 +159,50 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
 
 
+# Define the handler for the admin /refill command
+@bot.message_handler(commands=["refill"])
+def handle_refill_command(message):
+    wrong_input_string = "Укажите @username/id пользователя и сумму пополнения после команды\n\n" \
+                         "Пример: `/refill @username 1000`"
+
+    # Проверки на доступность команды
+    if message.from_user.id != ADMIN_ID:  # Если пользователь не админ
+        bot.reply_to(message, "Команда доступна только админу")
+        return
+    elif message.chat.type != "private":  # Если команда вызвана не в личке с ботом
+        bot.reply_to(message, "Эта команда недоступна в групповых чатах")
+        return
+
+    try:
+        target_user, amount = extract_arguments(message.text).split()
+        amount = int(amount)
+    except ValueError:
+        bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    not_found_string = f"Пользователь {target_user} не найден"
+    success_string = f"Баланс пользователя {target_user} успешно пополнен на {amount} токенов"
+
+    if target_user[0] == '@':
+        for user_id in list(data.keys())[2:]:
+            if data[user_id]["username"] == target_user:
+                data[user_id]["balance"] += amount
+                update_json_file(data)
+                bot.send_message(ADMIN_ID, success_string)
+                return
+        bot.send_message(ADMIN_ID, not_found_string)
+
+    elif target_user.isdigit():
+        if int(target_user) in data:
+            data[int(target_user)]["balance"] += amount
+            update_json_file(data)
+            bot.send_message(ADMIN_ID, success_string)
+            return
+        bot.send_message(ADMIN_ID, not_found_string)
+    else:
+        bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+
+
 # Define the handler for the /stop command
 @bot.message_handler(commands=["stop"])
 def handle_stop_command(message):
