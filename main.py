@@ -209,8 +209,7 @@ def handle_stop_command(message):
     if message.from_user.id == ADMIN_ID:
         bot.reply_to(message, "Stopping the script...")
         bot.stop_polling()
-    else:
-        bot.reply_to(message, "Только админ может останавливать бота")
+
 
 
 """=======================HANDLERS======================="""
