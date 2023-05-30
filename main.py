@@ -30,6 +30,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 # File with users and global token usage data
 DATAFILE = "data.json"
+BACKUPFILE = "data-backup.json"
 
 # Default values for new users, who are not in the data file
 DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": 30000,
@@ -66,8 +67,8 @@ def add_new_user(user_id: int, name: str, username: str) -> None:
 
 
 # Function to update the JSON file with relevant data
-def update_json_file(new_data) -> None:
-    with open(DATAFILE, "w", encoding='utf-8') as file:
+def update_json_file(new_data, file_name=DATAFILE) -> None:
+    with open(file_name, "w", encoding='utf-8') as file:
         json.dump(new_data, file, ensure_ascii=False, indent=4)
 
 
@@ -456,5 +457,6 @@ def handle_message(message):
 print("---работаем---")
 bot.infinity_polling()
 
-# Уведомляем админа об успешном завершении работы
+# Делаем бэкап бд и уведомляем админа об успешном завершении работы
+update_json_file(data, BACKUPFILE)
 bot.send_message(ADMIN_ID, "Бот остановлен")
