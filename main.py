@@ -373,15 +373,8 @@ def handle_message(message):
 
     # Если пользователя нет в базе, то добавляем его с дефолтными значениями
     if not is_user_exists(user.id):
-        add_new_user(user.id, user.first_name, user.username)
-
-        new_user_string = f"\nНовый пользователь: {user.full_name} " \
-                          f"@{user.username} {user.id}"
-        print(new_user_string)
-        bot.send_message(ADMIN_ID, new_user_string)
-
-        # Записываем инфу о новом пользователе в файл
-        update_json_file(data)
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        return
 
     # Проверяем, есть ли у пользователя токены на балансе
     if data[user.id]["balance"] <= 0:
