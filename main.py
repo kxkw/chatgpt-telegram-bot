@@ -420,9 +420,8 @@ def handle_message(message):
     # Считаем стоимость запроса в центах
     request_price = request_tokens * PRICE_CENTS
 
-    # формируем лог работы для юзера
-    user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 3)} " \
-               f"\nБип-боп"
+    # формируем лог работы для юзера под каждым сообщением
+    user_log = ""  # \n\nБип-боп
 
     # Send the response back to the user
     if message.chat.type == "private":
