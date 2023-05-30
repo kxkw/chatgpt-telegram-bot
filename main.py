@@ -50,7 +50,7 @@ def is_user_exists(user_id: int) -> bool:
 
 # Function to check if the user is in the blacklist
 def is_user_blacklisted(user_id: int) -> bool:
-    if "blacklisted" in data[user_id]:
+    if user_id in data and "blacklisted" in data[user_id]:
         return data[user_id]["blacklisted"]
     else:
         return False
