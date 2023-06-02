@@ -273,6 +273,25 @@ def handle_help_command(message):
                           "/reset_prompt - вернуть промпт по умолчанию\n")
 
 
+# Define the handler for the /ref command
+@bot.message_handler(commands=["ref", "invite"])
+def handle_ref_command(message):
+    user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
+
+    if is_user_exists(user_id):
+        ref_string = f"Пригласи друга по своей уникальной ссылке и раздели с ним 🎁*{REFERRAL_BONUS*2}*🎁 " \
+                     f"токенов на двоих!\n\n" \
+                     f"*Твоя реферальная ссылка:* \n" \
+                     f"`https://t.me/{bot.get_me().username}?start={user_id}`\n\n" \
+                     f"Зарабатывать еще никогда не было так легко! 🤑"
+        bot.reply_to(message, ref_string, parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+
 # Define the handler for the /balance command
 @bot.message_handler(commands=["balance"])
 def handle_balance_command(message):
