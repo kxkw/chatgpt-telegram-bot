@@ -15,6 +15,9 @@ DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 PRICE_1K = 0.002  # price per 1k tokens in USD
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
+NEW_USER_BALANCE = 20000  # balance for new users
+REFERRAL_BONUS = 10000  # bonus for inviting a new user
+
 # load .env file with secrets
 load_dotenv()
 
@@ -33,7 +36,7 @@ DATAFILE = "data.json"
 BACKUPFILE = "data-backup.json"
 
 # Default values for new users, who are not in the data file
-DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": 30000,
+DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
                 "name": "None", "username": "None", "lastdate": "11-09-2001 00:00:00"}
 
 
@@ -57,13 +60,18 @@ def is_user_blacklisted(user_id: int) -> bool:
 
 
 # Function to add new user to the data file
-def add_new_user(user_id: int, name: str, username: str) -> None:
+def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
     data[user_id] = DEFAULT_DATA.copy()
     data[user_id]["name"] = name
+
     if username is not None:
         data[user_id]["username"] = '@'+username
     else:
         data[user_id]["username"] = "None"
+
+    if referrer is not None:
+        data[user_id]["balance"] += REFERRAL_BONUS
+        data[user_id]["ref_id"] = referrer
 
 
 # Function to update the JSON file with relevant data
