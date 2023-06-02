@@ -4,6 +4,7 @@ from dotenv.main import load_dotenv
 import json
 import os
 import datetime
+import time
 
 from telebot.util import extract_arguments
 
@@ -240,24 +241,43 @@ def handle_start_command(message):
     if is_user_blacklisted(user.id):
         return
 
-    # Если юзер уже есть в базе, то просто здороваемся и выходим, иначе добавляем его в базу
+    # Если юзер уже есть в базе, то просто здороваемся и выходим, иначе проверяем рефералку и добавляем его в базу
     if is_user_exists(user.id):
         bot.send_message(message.chat.id, "Магдыч готов к работе 💪")  # мб выдавать случайное приветствие из пула
         return
+
+    welcome_string = f"{user.first_name}, с подключением 🤝\n\n" \
+                     f"На твой баланс зачислено {NEW_USER_BALANCE//1000}к токенов 🤑\n\n" \
+                     f"Полезные команды:\n/help - список команд\n/balance - баланс токенов\n" \
+                     f"/stats - статистика запросов\n/prompt - установить системный промпт\n\n" \
+                     f"/invite или /ref - пригласить друга и получить бонус 🎁"
+    bot.send_message(message.chat.id, welcome_string)
+
+    new_referral_string = ""
+    referrer = extract_arguments(message.text)
+    if referrer and referrer.isdigit() and is_user_exists(int(referrer)) and not is_user_blacklisted(int(referrer)):
+        referrer = int(referrer)
+        invited_by_string = f"Ого, тебя пригласил 🤩{data[referrer]['name']}🤩\n\n" \
+                            f"На твой баланс дополнительно зачислено +{str(REFERRAL_BONUS)} токенов! 🎉"
+        time.sleep(1.5)
+        bot.send_message(message.chat.id, invited_by_string)
+
+        data[referrer]["balance"] += REFERRAL_BONUS
+        ref_notification_string = f"Ого, по твоей ссылке присоединился 🤩{user.full_name}🤩\n\n" \
+                                  f"Это заслуживает лайка и +{str(REFERRAL_BONUS)} токенов на счет! 🎉"
+        bot.send_message(referrer, ref_notification_string)
+
+        new_referral_string = f"{data[referrer]['name']} {data[referrer]['username']} пригласил {user.full_name} 🤝\n"
     else:
-        add_new_user(user.id, user.first_name, user.username)
-        update_json_file(data)
+        referrer = None
 
-        welcome_string = f"{user.first_name}, с подключением 🤝\n\n" \
-                         f"На твой баланс зачислено 30к токенов 🤑\n\n" \
-                         f"Полезные команды:\n/help - список команд\n/balance - баланс токенов\n" \
-                         f"/stats - статистика запросов\n/prompt - установить системный промпт\n"
-        bot.send_message(message.chat.id, welcome_string)
+    add_new_user(user.id, user.first_name, user.username, referrer)
+    update_json_file(data)
 
-        new_user_log = f"\nНовый пользователь: {user.full_name} " \
-                       f"@{user.username} {user.id}"
-        print(new_user_log)
-        bot.send_message(ADMIN_ID, new_user_log)
+    new_user_log = f"\nНовый пользователь: {user.full_name} " \
+                   f"@{user.username} {user.id}!"
+    print(new_referral_string + new_user_log)
+    bot.send_message(ADMIN_ID, new_referral_string + new_user_log)
 
 
 # Define the handler for the /help command
