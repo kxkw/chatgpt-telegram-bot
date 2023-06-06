@@ -308,11 +308,19 @@ def handle_message(message):
     user_log = f"\n\n\nТокены: {request_tokens} за ¢{round(request_price, 3)} " \
                f"\nБип-боп"
 
-    # Send the response back to the user
+    # Send the response back to the user, but check for `parse_mode` errors
     if message.chat.type == "private":
-        bot.send_message(message.chat.id, response.choices[0].message.content + user_log, parse_mode="Markdown")
+        try:
+            bot.send_message(message.chat.id, response.choices[0].message.content + user_log, parse_mode="Markdown")
+        except telebot.apihelper.ApiTelegramException:
+            print(f"\nОшибка отправки из-за форматирования, отправляю без него")
+            bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
     else:
-        bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown")
+        try:
+            bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown")
+        except telebot.apihelper.ApiTelegramException:
+            print(f"\nОшибка отправки из-за форматирования, отправляю без него")
+            bot.reply_to(message, response.choices[0].message.content + user_log)
 
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
