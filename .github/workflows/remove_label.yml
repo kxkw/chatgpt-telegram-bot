@@ -6,6 +6,7 @@ on:
       
 jobs:
   remove_label:
+    if: contains(github.event.issue.labels.*.name, 'staged')
     runs-on: ubuntu-latest
     permissions:
       issues: write
