@@ -7,6 +7,7 @@ import datetime
 import time
 
 from telebot.util import extract_arguments
+from telebot import types
 
 
 MODEL = "gpt-3.5-turbo"
