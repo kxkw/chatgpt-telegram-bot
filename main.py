@@ -221,6 +221,50 @@ def handle_refill_command(message):
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
 
 
+# Define the handler for the admin /block command
+@bot.message_handler(commands=["ban", "block"])
+def handle_block_command(message):
+    target_user = extract_arguments(message.text)
+    wrong_input_string = "Укажите @username/id пользователя после команды\n\n" \
+                         "Пример: `/block @username`"
+
+    # Проверки на доступность команды
+    if message.from_user.id != ADMIN_ID:
+        return
+    elif message.chat.type != "private":
+        bot.reply_to(message, "Эта команда недоступна в групповых чатах")
+        return
+
+    if target_user == '':
+        bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    not_found_string = f"Пользователь {target_user} не найден"
+    success_string = f"Пользователь {target_user} успешно заблокирован"
+
+    if target_user[0] == '@':
+        for user_id in list(data.keys())[2:]:
+            if data[user_id]["username"] == target_user:
+                data[user_id]["blacklist"] = True
+                update_json_file(data)
+                bot.send_message(ADMIN_ID, success_string)
+                print(success_string)
+                return
+        bot.send_message(ADMIN_ID, not_found_string)
+
+    elif target_user.isdigit():
+        if int(target_user) in data:
+            data[int(target_user)]["blacklist"] = True
+            update_json_file(data)
+            bot.send_message(ADMIN_ID, success_string)
+            print(success_string)
+            return
+        bot.send_message(ADMIN_ID, not_found_string)
+
+    else:
+        bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+
+
 # Define the handler for the /stop command
 @bot.message_handler(commands=["stop"])
 def handle_stop_command(message):
