@@ -375,6 +375,20 @@ def handle_balance_command(message):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
 
+# Define the handler for the /topup command
+@bot.message_handler(commands=["topup"])
+def handle_topup_command(message):
+    user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
+
+    if is_user_exists(user_id):
+        bot.reply_to(message, f"Для пополнения баланса обратитесь к админу")  # Placeholder
+    else:
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+
 # Define the handler for the /stats command
 @bot.message_handler(commands=["stats"])
 def handle_stats_command(message):
