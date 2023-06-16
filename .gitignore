@@ -1,5 +1,7 @@
 /.env
 /data.json
+/data-backup.json
+/data-legacy.json
 /todo.py
 
 # Unrevisioned files from the project
