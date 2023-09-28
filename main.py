@@ -569,3 +569,4 @@ bot.infinity_polling()
 # Делаем бэкап бд и уведомляем админа об успешном завершении работы
 update_json_file(data, BACKUPFILE)
 bot.send_message(ADMIN_ID, "Бот остановлен")
+print("\n---работа завершена---")
