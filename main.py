@@ -82,6 +82,14 @@ def update_json_file(new_data, file_name=DATAFILE) -> None:
         json.dump(new_data, file, ensure_ascii=False, indent=4)
 
 
+# Function to get user_id by username
+def get_user_id_by_username(username: str) -> int | None:
+    for user_id in list(data.keys())[2:]:
+        if data[user_id]["username"] == username:
+            return user_id
+    return None
+
+
 # Function to get the user's prompt
 def get_user_prompt(user_id: int) -> str:
     if data[user_id].get("prompt") is None:
