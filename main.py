@@ -168,9 +168,9 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
 
     elif target_user_string.isdigit():  # Поиск по id пользователя
-        target_user_string = int(target_user_string)
-        if target_user_string in data:
-            bot.send_message(ADMIN_ID, json.dumps(data[target_user_string], ensure_ascii=False, indent=4))
+        target_user = int(target_user_string)
+        if target_user in data:
+            bot.send_message(ADMIN_ID, json.dumps(data[target_user], ensure_ascii=False, indent=4))
             return
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
 
