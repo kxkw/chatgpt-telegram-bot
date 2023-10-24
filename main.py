@@ -179,23 +179,50 @@ def handle_data_command(message):
         return
 
     elif target_user_string[0] == "@":  # Поиск по @username
-        user_id = get_user_id_by_username(target_user_string)
-        if user_id is None:
+        target_user_id = get_user_id_by_username(target_user_string)
+        if target_user_id is None:
             bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
             return
-        else:
-            bot.send_message(ADMIN_ID, json.dumps(data[user_id], ensure_ascii=False, indent=4))
 
     elif target_user_string.isdigit():  # Поиск по id пользователя
-        target_user = int(target_user_string)
-        if not is_user_exists(target_user):
+        target_user_id = int(target_user_string)
+        if not is_user_exists(target_user_id):
             bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
             return
-        else:
-            bot.send_message(ADMIN_ID, json.dumps(data[target_user], ensure_ascii=False, indent=4))
 
-    else:
+    else:  # Если аргументы были введены неверно, то просим исправиться
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+        return
+
+    # Если юзер был успешно найден, то формируем здесь сообщение с его статой
+    user_data_string = f"id {target_user_id}\n" \
+                       f"{data[target_user_id]['name']} " \
+                       f"{data[target_user_id]['username']}\n\n" \
+                       f"requests: {data[target_user_id]['requests']}\n" \
+                       f"tokens: {data[target_user_id]['tokens']}\n" \
+                       f"balance: {data[target_user_id]['balance']}\n" \
+                       f"last request: {data[target_user_id]['lastdate']}\n\n" \
+                       # f"refs: {len(get_user_referrals(target_user_id))}\n\n"
+
+    # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
+    if "ref_id" in data[target_user_id]:
+        referrer = data[target_user_id]["ref_id"]
+        user_data_string += f"invited by: {referrer} {data[referrer]['name']} {data[referrer]['username']}\n\n"
+
+    # Если у пользователя есть промпт, то выдать его
+    if "prompt" in data[target_user_id]:
+        user_data_string += f"prompt: {data[target_user_id].get('prompt')}\n\n"
+
+    user_referrals_list: list = get_user_referrals(target_user_id)
+    if not user_referrals_list:  # Если рефералов нет, то просто отправляем текущие данные по пользователю
+        bot.send_message(ADMIN_ID, user_data_string)
+        return
+
+    user_data_string += "invited users:\n"
+    for ref in user_referrals_list:
+        user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
+
+    bot.send_message(ADMIN_ID, user_data_string)
 
 
 # Define the handler for the admin /refill command
