@@ -117,6 +117,16 @@ def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYST
     )
 
 
+# Function to get all user's referrals
+def get_user_referrals(user_id: int) -> list:
+    user_referrals = []
+    for user in data:
+        if data[user].get("ref_id") == user_id:
+            user_referrals.append(user)
+
+    return user_referrals
+
+
 """========================SETUP========================="""
 
 
