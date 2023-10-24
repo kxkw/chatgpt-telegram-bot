@@ -169,11 +169,12 @@ def handle_data_command(message):
         return
 
     elif target_user_string[0] == "@":  # Поиск по @username
-        for user_id in list(data.keys())[2:]:
-            if data[user_id]["username"] == target_user_string:
-                bot.send_message(ADMIN_ID, json.dumps(data[user_id], ensure_ascii=False, indent=4))
-                return
-        bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+        user_id = get_user_id_by_username(target_user_string)
+        if user_id is None:
+            bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+            return
+        else:
+            bot.send_message(ADMIN_ID, json.dumps(data[user_id], ensure_ascii=False, indent=4))
 
     elif target_user_string.isdigit():  # Поиск по id пользователя
         target_user = int(target_user_string)
