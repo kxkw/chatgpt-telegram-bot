@@ -321,7 +321,6 @@ def handle_stop_command(message):
         bot.stop_polling()
 
 
-
 """=======================HANDLERS======================="""
 
 
