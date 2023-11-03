@@ -704,6 +704,16 @@ def handle_message(message):
         bot.send_message(ADMIN_ID, admin_log)
 
 
+# Handler only for bot pinned messages
+@bot.message_handler(content_types=["pinned_message"])
+def handle_pinned_message(message):
+    if message.from_user.id != bot.get_me().id:
+        return
+
+    # Удаляем системное сообщение о закрепе
+    bot.delete_message(message.chat.id, message.message_id)
+
+
 # Start the bot
 print("---работаем---")
 bot.infinity_polling()
