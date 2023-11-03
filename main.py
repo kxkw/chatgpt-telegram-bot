@@ -19,6 +19,7 @@ DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
 NEW_USER_BALANCE = 20000  # balance for new users
 REFERRAL_BONUS = 10000  # bonus for inviting a new user
+FAVOR_AMOUNT = 20000  # amount of tokens per granted favor
 
 # load .env file with secrets
 load_dotenv()
@@ -509,6 +510,101 @@ def handle_reset_prompt_command(message):
             print("\nУ вас уже стоит дефолтный промпт!")
     else:
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+
+# Handler for the /ask_favor command
+@bot.message_handler(commands=["ask_favor", "askfavor", "favor"])
+def handle_ask_favor_command(message):
+    user = message.from_user
+
+    if is_user_blacklisted(user.id):
+        return
+
+    if not is_user_exists(user.id):
+        return
+
+    if user.id == ADMIN_ID:
+        bot.reply_to(message, f"У тебя уже анлимитед саплай токенов, бро")
+        return
+    elif data[user.id]["balance"] > 5000:
+        bot.reply_to(message, f"Не надо жадничать, бро!")
+        return
+    # TODO: если активный запрос уже есть у чела, то скипаем.
+    #  При одобрении или отклонении заявки активный запрос обнуляется.
+    #  Да, я могу позволить себе туду в коммите
+    else:
+        bot.reply_to(message, "Ваша заявка отправлена на рассмотрение администратору 🙏\n")
+
+        admin_invoice_string = f"Пользователь {user.full_name} @{user.username} {user.id} просит подачку!\n\n" \
+                               f"requests: {data[user.id]['requests']}\n" \
+                               f"tokens: {data[user.id]['tokens']}\n" \
+                               f"balance: {data[user.id]['balance']}\n\n" \
+                               f"Оформляем?"
+
+        # add two buttons to the message
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(text='Да', callback_data='favor_yes$' + str(user.id)),
+                   types.InlineKeyboardButton(text='Нет', callback_data='favor_no$' + str(user.id)))
+
+        admin_message = bot.send_message(ADMIN_ID, admin_invoice_string, reply_markup=markup)
+        bot.pin_chat_message(ADMIN_ID, admin_message.message_id, disable_notification=True)
+
+
+# Favor callback data handler
+@bot.callback_query_handler(func=lambda call: True)
+def handle_favor_callback(call):
+    call_data_list: list = call.data.split("$")
+
+    if call.from_user.id != ADMIN_ID:
+        return
+    elif len(call_data_list) != 2:
+        bot.answer_callback_query(call.id, "Должно быть два аргумента!\n\ncallback_data: " + call.data, True)
+        return
+    elif not call_data_list[1].isdigit():
+        bot.answer_callback_query(call.id, "Второй аргумент должен быть числом!\n\ncallback_data: " + call.data, True)
+        return
+
+    call_data_list[1] = int(call_data_list[1])
+    user = data[call_data_list[1]]
+
+    if call_data_list[0] == 'favor_yes':
+        bot.answer_callback_query(call.id, "Заявка принята")
+        bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
+
+        if "favors" in user:
+            user["favors"] += 1
+        else:
+            user["favors"] = 1
+
+        user["balance"] += FAVOR_AMOUNT
+        update_json_file(data)
+
+        bot.send_message(call_data_list[1], f"Ваши мольбы были услышаны! 🙏\n\n"
+                                            f"Вам начислено {FAVOR_AMOUNT} токенов!\n"
+                                            f"Текущий баланс: {data[int(call_data_list[1])]['balance']}")
+
+        edited_admin_message = f"Заявка от {user['name']} {user['username']} {call_data_list[1]}\n\n" \
+                               f"requests: {user['requests']}\n" \
+                               f"tokens: {user['tokens']}\n" \
+                               f"balance: {user['balance']}\n\n" \
+                               f"✅ Оформлено! ✅"
+        bot.edit_message_text(chat_id=ADMIN_ID, message_id=call.message.message_id, text=edited_admin_message)
+
+    elif call_data_list[0] == 'favor_no':
+        bot.answer_callback_query(call.id, "Заявка отклонена")
+        bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
+
+        bot.send_message(call_data_list[1], "Вам отказано в просьбе!")
+
+        edited_admin_message = f"Заявка от {user['name']} {user['username']} {call_data_list[1]}\n\n" \
+                               f"requests: {user['requests']}\n" \
+                               f"tokens: {user['tokens']}\n" \
+                               f"balance: {user['balance']}\n\n" \
+                               f"❌ Отклонено! ❌"
+        bot.edit_message_text(chat_id=ADMIN_ID, message_id=call.message.message_id, text=edited_admin_message)
+
+    else:
+        bot.answer_callback_query(call.id, "Что-то пошло не так...\n\ncallback_data: " + call.data, True)
 
 
 # Define the message handler for incoming messages
