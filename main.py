@@ -532,11 +532,13 @@ def handle_ask_favor_command(message):
     elif data[user.id]["balance"] > 5000:
         bot.reply_to(message, f"Не надо жадничать, бро!")
         return
-    # TODO: если активный запрос уже есть у чела, то скипаем.
-    #  При одобрении или отклонении заявки активный запрос обнуляется.
-    #  Да, я могу позволить себе туду в коммите
+    elif data[user.id].get("active_favor_request"):
+        bot.reply_to(message, f"У тебя уже есть активный запрос, бро")
+        return
     else:
         bot.reply_to(message, "Ваша заявка отправлена на рассмотрение администратору 🙏\n")
+        data[user.id]["active_favor_request"] = True
+        update_json_file(data)
 
         admin_invoice_string = f"Пользователь {user.full_name} @{user.username} {user.id} просит подачку!\n\n" \
                                f"requests: {data[user.id]['requests']}\n" \
@@ -580,6 +582,9 @@ def handle_favor_callback(call):
             user["favors"] = 1
 
         user["balance"] += FAVOR_AMOUNT
+
+        if user.get("active_favor_request"):
+            del user["active_favor_request"]
         update_json_file(data)
 
         bot.send_message(call_data_list[1], f"Ваши мольбы были услышаны! 🙏\n\n"
@@ -597,7 +602,11 @@ def handle_favor_callback(call):
         bot.answer_callback_query(call.id, "Заявка отклонена")
         bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
 
-        bot.send_message(call_data_list[1], "Вам отказано в просьбе!")
+        if user.get("active_favor_request"):
+            del user["active_favor_request"]
+        update_json_file(data)
+
+        bot.send_message(call_data_list[1], "Вам было отказано в просьбе, попробуйте позже!")
 
         edited_admin_message = f"Заявка от {user['name']} {user['username']} {call_data_list[1]}\n\n" \
                                f"requests: {user['requests']}\n" \
