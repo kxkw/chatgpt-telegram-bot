@@ -696,6 +696,7 @@ def handle_message(message):
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * PRICE_CENTS, 3)}\n"
                  f"Юзер: {user.full_name} "
                  f"@{user.username} {user.id}\n"
+                 f"Баланс: {data[user.id]['balance']}\n"
                  f"Чат: {message.chat.title} {message.chat.id}"
                  f"\n{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
 
