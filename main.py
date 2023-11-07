@@ -202,26 +202,29 @@ def handle_data_command(message):
                        f"requests: {data[target_user_id]['requests']}\n" \
                        f"tokens: {data[target_user_id]['tokens']}\n" \
                        f"balance: {data[target_user_id]['balance']}\n" \
-                       f"last request: {data[target_user_id]['lastdate']}\n\n" \
-                       # f"refs: {len(get_user_referrals(target_user_id))}\n\n"
+                       f"last request: {data[target_user_id]['lastdate']}\n\n"
 
-    # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
-    if "ref_id" in data[target_user_id]:
-        referrer = data[target_user_id]["ref_id"]
-        user_data_string += f"invited by: {referrer} {data[referrer]['name']} {data[referrer]['username']}\n\n"
+    # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
+    if "favors" in data[target_user_id]:
+        user_data_string += f"favors: {data[target_user_id]['favors']}\n\n"
 
     # Если у пользователя есть промпт, то выдать его
     if "prompt" in data[target_user_id]:
         user_data_string += f"prompt: {data[target_user_id].get('prompt')}\n\n"
+
+    # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
+    if "ref_id" in data[target_user_id]:
+        referrer = data[target_user_id]["ref_id"]
+        user_data_string += f"invited by: {data[referrer]['name']} {data[referrer]['username']} {referrer}\n\n"
 
     user_referrals_list: list = get_user_referrals(target_user_id)
     if not user_referrals_list:  # Если рефералов нет, то просто отправляем текущие данные по пользователю
         bot.send_message(ADMIN_ID, user_data_string)
         return
 
-    user_data_string += "invited users:\n"
+    user_data_string += f"{len(user_referrals_list)} invited users:\n"
     for ref in user_referrals_list:
-        user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
+        user_data_string += f"{ref} {data[ref]['name']} {data[ref]['username']}: {data[ref]['requests']}\n"
 
     bot.send_message(ADMIN_ID, user_data_string)
 
