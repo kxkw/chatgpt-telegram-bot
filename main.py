@@ -20,6 +20,7 @@ DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 NEW_USER_BALANCE = 20000  # balance for new users
 REFERRAL_BONUS = 10000  # bonus for inviting a new user
 FAVOR_AMOUNT = 20000  # amount of tokens per granted favor
+FAVOR_MIN_LIMIT = 5000  # minimum balance to ask for a favor
 
 # load .env file with secrets
 load_dotenv()
@@ -529,7 +530,7 @@ def handle_ask_favor_command(message):
     if user.id == ADMIN_ID:
         bot.reply_to(message, f"У тебя уже анлимитед саплай токенов, бро")
         return
-    elif data[user.id]["balance"] > 5000:
+    elif data[user.id]["balance"] > FAVOR_MIN_LIMIT:
         bot.reply_to(message, f"Не надо жадничать, бро!")
         return
     elif data[user.id].get("active_favor_request"):
