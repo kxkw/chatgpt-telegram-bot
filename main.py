@@ -225,7 +225,7 @@ def handle_data_command(message):
 
     user_data_string += f"{len(user_referrals_list)} invited users:\n"
     for ref in user_referrals_list:
-        user_data_string += f"{ref} {data[ref]['name']} {data[ref]['username']}: {data[ref]['requests']}\n"
+        user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
 
     bot.send_message(ADMIN_ID, user_data_string)
 
