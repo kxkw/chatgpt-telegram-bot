@@ -231,7 +231,7 @@ def handle_data_command(message):
 
 
 # Define the handler for the admin /refill command
-@bot.message_handler(commands=["refill"])
+@bot.message_handler(commands=["r", "refill"])
 def handle_refill_command(message):
     wrong_input_string = "Укажите @username/id пользователя и сумму пополнения после команды\n\n" \
                          "Пример: `/refill @username 1000`"
