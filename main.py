@@ -10,7 +10,7 @@ from telebot.util import extract_arguments
 from telebot import types
 
 
-MODEL = "gpt-3.5-turbo"
+MODEL = "gpt-3.5-turbo-1106"
 MAX_REQUEST_TOKENS = 1800
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
