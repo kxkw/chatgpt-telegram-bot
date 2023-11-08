@@ -254,14 +254,16 @@ def handle_refill_command(message):
     not_found_string = f"Пользователь {target_user} не найден"
     success_string = f"Баланс пользователя {target_user} успешно пополнен на {amount} токенов"
 
-    if target_user[0] == '@':
-        for user_id in list(data.keys())[2:]:
-            if data[user_id]["username"] == target_user:
-                data[user_id]["balance"] += amount
-                update_json_file(data)
-                bot.send_message(ADMIN_ID, success_string)
-                return
-        bot.send_message(ADMIN_ID, not_found_string)
+    if target_user[0] == '@':  # Поиск по @username
+        target_user_id = get_user_id_by_username(target_user)
+
+        if target_user_id is None:
+            bot.send_message(ADMIN_ID, not_found_string)
+            return
+
+        data[target_user_id]["balance"] += amount
+        update_json_file(data)
+        bot.send_message(ADMIN_ID, success_string)
 
     elif target_user.isdigit():
         if int(target_user) in data:
