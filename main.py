@@ -160,7 +160,7 @@ session_tokens, request_number = 0, 0
 
 
 # Define the handler for the admin /data command
-@bot.message_handler(commands=["data"])
+@bot.message_handler(commands=["d", "data"])
 def handle_data_command(message):
     target_user_string = extract_arguments(message.text)
     not_found_string = "Пользователь не найден, либо данные введены неверно.\n" \
