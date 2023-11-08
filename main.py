@@ -265,13 +265,17 @@ def handle_refill_command(message):
         update_json_file(data)
         bot.send_message(ADMIN_ID, success_string)
 
-    elif target_user.isdigit():
-        if int(target_user) in data:
-            data[int(target_user)]["balance"] += amount
-            update_json_file(data)
-            bot.send_message(ADMIN_ID, success_string)
+    elif target_user.isdigit():  # Поиск по id пользователя
+        target_user_id = int(target_user)
+
+        if not is_user_exists(target_user_id):
+            bot.send_message(ADMIN_ID, not_found_string)
             return
-        bot.send_message(ADMIN_ID, not_found_string)
+
+        data[target_user_id]["balance"] += amount
+        update_json_file(data)
+        bot.send_message(ADMIN_ID, success_string)
+
     else:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
 
