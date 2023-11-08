@@ -459,7 +459,7 @@ def handle_stats_command(message):
 
 
 # Define the handler for the /prompt command
-@bot.message_handler(commands=["prompt"])
+@bot.message_handler(commands=["p", "prompt"])
 def handle_prompt_command(message):
     user = message.from_user
     answer = ""
