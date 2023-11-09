@@ -1,3 +1,5 @@
+from typing import Optional
+
 import telebot
 import openai
 from dotenv.main import load_dotenv
@@ -85,7 +87,7 @@ def update_json_file(new_data, file_name=DATAFILE) -> None:
 
 
 # Function to get user_id by username
-def get_user_id_by_username(username: str) -> int | None:
+def get_user_id_by_username(username: str) -> Optional[int]:
     for user_id in list(data.keys())[2:]:
         if data[user_id]["username"] == username:
             return user_id
