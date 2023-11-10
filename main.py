@@ -1,3 +1,5 @@
+from typing import Optional
+
 import telebot
 import openai
 from dotenv.main import load_dotenv
@@ -10,7 +12,7 @@ from telebot.util import extract_arguments
 from telebot import types
 
 
-MODEL = "gpt-3.5-turbo"
+MODEL = "gpt-3.5-turbo-1106"
 MAX_REQUEST_TOKENS = 1800
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
@@ -19,6 +21,8 @@ DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
 NEW_USER_BALANCE = 20000  # balance for new users
 REFERRAL_BONUS = 10000  # bonus for inviting a new user
+FAVOR_AMOUNT = 20000  # amount of tokens per granted favor
+FAVOR_MIN_LIMIT = 5000  # minimum balance to ask for a favor
 
 # load .env file with secrets
 load_dotenv()
@@ -82,6 +86,14 @@ def update_json_file(new_data, file_name=DATAFILE) -> None:
         json.dump(new_data, file, ensure_ascii=False, indent=4)
 
 
+# Function to get user_id by username
+def get_user_id_by_username(username: str) -> Optional[int]:
+    for user_id in list(data.keys())[2:]:
+        if data[user_id]["username"] == username:
+            return user_id
+    return None
+
+
 # Function to get the user's prompt
 def get_user_prompt(user_id: int) -> str:
     if data[user_id].get("prompt") is None:
@@ -100,13 +112,23 @@ def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYST
         print("\nЗапрос с контекстом 🤩")
     else:
         messages.append({"role": "user", "content": user_request})
-        print("\nЗапрос без контекста")
+        # print("\nЗапрос без контекста")
 
     return openai.ChatCompletion.create(
         model=MODEL,
         max_tokens=MAX_REQUEST_TOKENS,
         messages=messages
     )
+
+
+# Function to get all user's referrals
+def get_user_referrals(user_id: int) -> list:
+    user_referrals = []
+    for user in data:
+        if data[user].get("ref_id") == user_id:
+            user_referrals.append(user)
+
+    return user_referrals
 
 
 """========================SETUP========================="""
@@ -140,7 +162,7 @@ session_tokens, request_number = 0, 0
 
 
 # Define the handler for the admin /data command
-@bot.message_handler(commands=["data"])
+@bot.message_handler(commands=["d", "data"])
 def handle_data_command(message):
     target_user_string = extract_arguments(message.text)
     not_found_string = "Пользователь не найден, либо данные введены неверно.\n" \
@@ -161,25 +183,57 @@ def handle_data_command(message):
         return
 
     elif target_user_string[0] == "@":  # Поиск по @username
-        for user_id in list(data.keys())[2:]:
-            if data[user_id]["username"] == target_user_string:
-                bot.send_message(ADMIN_ID, json.dumps(data[user_id], ensure_ascii=False, indent=4))
-                return
-        bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+        target_user_id = get_user_id_by_username(target_user_string)
+        if target_user_id is None:
+            bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+            return
 
     elif target_user_string.isdigit():  # Поиск по id пользователя
-        target_user_string = int(target_user_string)
-        if target_user_string in data:
-            bot.send_message(ADMIN_ID, json.dumps(data[target_user_string], ensure_ascii=False, indent=4))
+        target_user_id = int(target_user_string)
+        if not is_user_exists(target_user_id):
+            bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
             return
-        bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
 
-    else:
+    else:  # Если аргументы были введены неверно, то просим исправиться
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
+        return
+
+    # Если юзер был успешно найден, то формируем здесь сообщение с его статой
+    user_data_string = f"id {target_user_id}\n" \
+                       f"{data[target_user_id]['name']} " \
+                       f"{data[target_user_id]['username']}\n\n" \
+                       f"requests: {data[target_user_id]['requests']}\n" \
+                       f"tokens: {data[target_user_id]['tokens']}\n" \
+                       f"balance: {data[target_user_id]['balance']}\n" \
+                       f"last request: {data[target_user_id]['lastdate']}\n\n"
+
+    # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
+    if "favors" in data[target_user_id]:
+        user_data_string += f"favors: {data[target_user_id]['favors']}\n\n"
+
+    # Если у пользователя есть промпт, то выдать его
+    if "prompt" in data[target_user_id]:
+        user_data_string += f"prompt: {data[target_user_id].get('prompt')}\n\n"
+
+    # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
+    if "ref_id" in data[target_user_id]:
+        referrer = data[target_user_id]["ref_id"]
+        user_data_string += f"invited by: {data[referrer]['name']} {data[referrer]['username']} {referrer}\n\n"
+
+    user_referrals_list: list = get_user_referrals(target_user_id)
+    if not user_referrals_list:  # Если рефералов нет, то просто отправляем текущие данные по пользователю
+        bot.send_message(ADMIN_ID, user_data_string)
+        return
+
+    user_data_string += f"{len(user_referrals_list)} invited users:\n"
+    for ref in user_referrals_list:
+        user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
+
+    bot.send_message(ADMIN_ID, user_data_string)
 
 
 # Define the handler for the admin /refill command
-@bot.message_handler(commands=["refill"])
+@bot.message_handler(commands=["r", "refill"])
 def handle_refill_command(message):
     wrong_input_string = "Укажите @username/id пользователя и сумму пополнения после команды\n\n" \
                          "Пример: `/refill @username 1000`"
@@ -202,22 +256,28 @@ def handle_refill_command(message):
     not_found_string = f"Пользователь {target_user} не найден"
     success_string = f"Баланс пользователя {target_user} успешно пополнен на {amount} токенов"
 
-    if target_user[0] == '@':
-        for user_id in list(data.keys())[2:]:
-            if data[user_id]["username"] == target_user:
-                data[user_id]["balance"] += amount
-                update_json_file(data)
-                bot.send_message(ADMIN_ID, success_string)
-                return
-        bot.send_message(ADMIN_ID, not_found_string)
+    if target_user[0] == '@':  # Поиск по @username
+        target_user_id = get_user_id_by_username(target_user)
 
-    elif target_user.isdigit():
-        if int(target_user) in data:
-            data[int(target_user)]["balance"] += amount
-            update_json_file(data)
-            bot.send_message(ADMIN_ID, success_string)
+        if target_user_id is None:
+            bot.send_message(ADMIN_ID, not_found_string)
             return
-        bot.send_message(ADMIN_ID, not_found_string)
+
+        data[target_user_id]["balance"] += amount
+        update_json_file(data)
+        bot.send_message(ADMIN_ID, success_string)
+
+    elif target_user.isdigit():  # Поиск по id пользователя
+        target_user_id = int(target_user)
+
+        if not is_user_exists(target_user_id):
+            bot.send_message(ADMIN_ID, not_found_string)
+            return
+
+        data[target_user_id]["balance"] += amount
+        update_json_file(data)
+        bot.send_message(ADMIN_ID, success_string)
+
     else:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
 
@@ -272,7 +332,6 @@ def handle_stop_command(message):
     if message.from_user.id == ADMIN_ID:
         bot.reply_to(message, "Stopping the script...")
         bot.stop_polling()
-
 
 
 """=======================HANDLERS======================="""
@@ -408,7 +467,7 @@ def handle_stats_command(message):
 
 
 # Define the handler for the /prompt command
-@bot.message_handler(commands=["prompt"])
+@bot.message_handler(commands=["p", "prompt"])
 def handle_prompt_command(message):
     user = message.from_user
     answer = ""
@@ -463,6 +522,110 @@ def handle_reset_prompt_command(message):
             print("\nУ вас уже стоит дефолтный промпт!")
     else:
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+
+# Handler for the /ask_favor command
+@bot.message_handler(commands=["ask_favor", "askfavor", "favor"])
+def handle_ask_favor_command(message):
+    user = message.from_user
+
+    if is_user_blacklisted(user.id):
+        return
+
+    if not is_user_exists(user.id):
+        return
+
+    if user.id == ADMIN_ID:
+        bot.reply_to(message, f"У тебя уже анлимитед саплай токенов, бро")
+        return
+    elif data[user.id]["balance"] > FAVOR_MIN_LIMIT:
+        bot.reply_to(message, f"Не надо жадничать, бро!")
+        return
+    elif data[user.id].get("active_favor_request"):
+        bot.reply_to(message, f"У тебя уже есть активный запрос, бро")
+        return
+    else:
+        bot.reply_to(message, "Ваша заявка отправлена на рассмотрение администратору 🙏\n")
+        data[user.id]["active_favor_request"] = True
+        update_json_file(data)
+
+        admin_invoice_string = f"Пользователь {user.full_name} @{user.username} {user.id} просит подачку!\n\n" \
+                               f"requests: {data[user.id]['requests']}\n" \
+                               f"tokens: {data[user.id]['tokens']}\n" \
+                               f"balance: {data[user.id]['balance']}\n\n" \
+                               f"Оформляем?"
+
+        # add two buttons to the message
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(text='Да', callback_data='favor_yes$' + str(user.id)),
+                   types.InlineKeyboardButton(text='Нет', callback_data='favor_no$' + str(user.id)))
+
+        admin_message = bot.send_message(ADMIN_ID, admin_invoice_string, reply_markup=markup)
+        bot.pin_chat_message(ADMIN_ID, admin_message.message_id, disable_notification=True)
+
+
+# Favor callback data handler
+@bot.callback_query_handler(func=lambda call: True)
+def handle_favor_callback(call):
+    call_data_list: list = call.data.split("$")
+
+    if call.from_user.id != ADMIN_ID:
+        return
+    elif len(call_data_list) != 2:
+        bot.answer_callback_query(call.id, "Должно быть два аргумента!\n\ncallback_data: " + call.data, True)
+        return
+    elif not call_data_list[1].isdigit():
+        bot.answer_callback_query(call.id, "Второй аргумент должен быть числом!\n\ncallback_data: " + call.data, True)
+        return
+
+    call_data_list[1] = int(call_data_list[1])
+    user = data[call_data_list[1]]
+
+    if call_data_list[0] == 'favor_yes':
+        bot.answer_callback_query(call.id, "Заявка принята")
+        bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
+
+        if "favors" in user:
+            user["favors"] += 1
+        else:
+            user["favors"] = 1
+
+        user["balance"] += FAVOR_AMOUNT
+
+        if user.get("active_favor_request"):
+            del user["active_favor_request"]
+        update_json_file(data)
+
+        bot.send_message(call_data_list[1], f"Ваши мольбы были услышаны! 🙏\n\n"
+                                            f"Вам начислено {FAVOR_AMOUNT} токенов!\n"
+                                            f"Текущий баланс: {data[int(call_data_list[1])]['balance']}")
+
+        edited_admin_message = f"Заявка от {user['name']} {user['username']} {call_data_list[1]}\n\n" \
+                               f"requests: {user['requests']}\n" \
+                               f"tokens: {user['tokens']}\n" \
+                               f"balance: {user['balance']}\n\n" \
+                               f"✅ Оформлено! ✅"
+        bot.edit_message_text(chat_id=ADMIN_ID, message_id=call.message.message_id, text=edited_admin_message)
+
+    elif call_data_list[0] == 'favor_no':
+        bot.answer_callback_query(call.id, "Заявка отклонена")
+        bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
+
+        if user.get("active_favor_request"):
+            del user["active_favor_request"]
+        update_json_file(data)
+
+        bot.send_message(call_data_list[1], "Вам было отказано в просьбе, попробуйте позже!")
+
+        edited_admin_message = f"Заявка от {user['name']} {user['username']} {call_data_list[1]}\n\n" \
+                               f"requests: {user['requests']}\n" \
+                               f"tokens: {user['tokens']}\n" \
+                               f"balance: {user['balance']}\n\n" \
+                               f"❌ Отклонено! ❌"
+        bot.edit_message_text(chat_id=ADMIN_ID, message_id=call.message.message_id, text=edited_admin_message)
+
+    else:
+        bot.answer_callback_query(call.id, "Что-то пошло не так...\n\ncallback_data: " + call.data, True)
 
 
 # Define the message handler for incoming messages
@@ -551,6 +714,7 @@ def handle_message(message):
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * PRICE_CENTS, 3)}\n"
                  f"Юзер: {user.full_name} "
                  f"@{user.username} {user.id}\n"
+                 f"Баланс: {data[user.id]['balance']}\n"
                  f"Чат: {message.chat.title} {message.chat.id}"
                  f"\n{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
 
@@ -562,6 +726,16 @@ def handle_message(message):
         bot.send_message(ADMIN_ID, admin_log)
 
 
+# Handler only for bot pinned messages
+@bot.message_handler(content_types=["pinned_message"])
+def handle_pinned_message(message):
+    if message.from_user.id != bot.get_me().id:
+        return
+
+    # Удаляем системное сообщение о закрепе
+    bot.delete_message(message.chat.id, message.message_id)
+
+
 # Start the bot
 print("---работаем---")
 bot.infinity_polling()
@@ -569,3 +743,4 @@ bot.infinity_polling()
 # Делаем бэкап бд и уведомляем админа об успешном завершении работы
 update_json_file(data, BACKUPFILE)
 bot.send_message(ADMIN_ID, "Бот остановлен")
+print("\n---работа завершена---")
