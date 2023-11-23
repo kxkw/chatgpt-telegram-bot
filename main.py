@@ -303,27 +303,25 @@ def handle_block_command(message):
     not_found_string = f"Пользователь {target_user} не найден"
     success_string = f"Пользователь {target_user} успешно заблокирован"
 
+    # Находим айди юзера, если он есть в базе, иначе выходим
     if target_user[0] == '@':
-        for user_id in list(data.keys())[2:]:
-            if data[user_id]["username"] == target_user:
-                data[user_id]["blacklist"] = True
-                update_json_file(data)
-                bot.send_message(ADMIN_ID, success_string)
-                print(success_string)
-                return
-        bot.send_message(ADMIN_ID, not_found_string)
-
-    elif target_user.isdigit():
-        if int(target_user) in data:
-            data[int(target_user)]["blacklist"] = True
-            update_json_file(data)
-            bot.send_message(ADMIN_ID, success_string)
-            print(success_string)
+        target_user = get_user_id_by_username(target_user)
+        if target_user is None:
+            bot.send_message(ADMIN_ID, not_found_string)
             return
-        bot.send_message(ADMIN_ID, not_found_string)
-
+    elif target_user.isdigit():
+        target_user = int(target_user)
+        if not is_user_exists(target_user):
+            bot.send_message(ADMIN_ID, not_found_string)
+            return
     else:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    data[target_user]["blacklist"] = True
+    update_json_file(data)
+    bot.send_message(ADMIN_ID, success_string)
+    print(success_string)
 
 
 # Define the handler for the /stop command
