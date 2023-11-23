@@ -538,7 +538,7 @@ def handle_ask_favor_command(message):
         bot.reply_to(message, f"У тебя уже анлимитед саплай токенов, бро")
         return
     elif data[user.id]["balance"] > FAVOR_MIN_LIMIT:
-        bot.reply_to(message, f"Не надо жадничать, бро!")
+        bot.reply_to(message, f"Не надо жадничать, бро!\nПриходи, когда у тебя будет меньше {FAVOR_MIN_LIMIT} токенов.")
         return
     elif data[user.id].get("active_favor_request"):
         bot.reply_to(message, f"У тебя уже есть активный запрос, бро")
