@@ -332,6 +332,154 @@ def handle_stop_command(message):
         bot.stop_polling()
 
 
+# Define the handler for the /announce command
+# Эта команда принимает сообщение от админа и рассылает его между пользователями бота (типа уведомления)
+@bot.message_handler(commands=["a", "announce", "alert", "broadcast", "notify"])
+def handle_announce_command(message):
+    user = message.from_user
+
+    if user.id != ADMIN_ID or message.chat.type != "private":
+        return
+
+    # Получаем аргументы команды (текст после /announce)
+    # TODO: мб сплитануть по пробелу и из строки сделать список аргументов
+    user_filter = extract_arguments(message.text)
+
+    if user_filter == "":
+        bot.reply_to(message, "Введите тип рассылки после команды /announce\n\n"
+                              "Варианты:\n"
+                              "all - рассылка всем пользователям\n"
+                              "req1 - расылка всем пользователям, кто сделал хотя бы 1 запрос\n"
+                              "test - рассылка только админу (тест команды)\n\n"
+                              "Так же можно уведомить только одного пользователя, написав его user_id или @username")
+        return
+
+    bot.reply_to(message, "Введите текст сообщения для рассылки.\nq - отмена")
+    bot.register_next_step_handler(message, process_announcement_message_step, user_filter)
+
+
+def process_announcement_message_step(message, user_filter):
+    user = message.from_user
+
+    if user.id != ADMIN_ID or message.chat.type != "private":
+        return
+
+    announcement_text = message.html_text
+    recepients_list = []
+
+    if announcement_text == "q":
+        bot.send_message(user.id, "Рассылка отменена")
+        return
+
+    if user_filter == "test":
+        recepients_list.append(ADMIN_ID)
+        announcement_msg = bot.send_message(user.id, announcement_text, parse_mode="HTML")
+        time.sleep(0.5)
+        bot.reply_to(announcement_msg, "Получатели: тестовый режим, только админ\n\n"
+                                       "Разослать данное сообщение? (y/n)\n")
+        bot.register_next_step_handler(announcement_msg, process_announcement_confirmation_step,
+                                       recepients_list, announcement_text)
+        # print("рассылка:\n" + announcement_text + "\nфильтр: " + user_filter)
+        return
+
+    elif user_filter == "all":
+        recepients_list = list(data.keys())[1:]
+        announcement_msg = bot.send_message(user.id, announcement_text, parse_mode="HTML")
+        time.sleep(0.5)
+        bot.reply_to(announcement_msg, f"Получатели: все пользователи ({len(recepients_list)})\n\n"
+                                       "Разослать данное сообщение? (y/n)\n")
+        bot.register_next_step_handler(announcement_msg, process_announcement_confirmation_step,
+                                       recepients_list, announcement_text)
+        return
+
+    elif user_filter[:3] == "req":
+        user_filter = user_filter[3:]
+        if not user_filter.isdigit():
+            bot.send_message(user.id, "Неверный тип рассылки!\nЖми /announce для справки")
+            return
+
+        user_filter = int(user_filter)
+        for user_id in list(data.keys())[1:]:
+            if data[user_id]["requests"] >= user_filter:
+                recepients_list.append(user_id)
+
+        announcement_msg = bot.send_message(user.id, announcement_text, parse_mode="HTML")
+        time.sleep(0.5)
+        bot.reply_to(announcement_msg, f"Получатели: юзеры от {user_filter} запросов ({len(recepients_list)})\n\n"
+                                       "Разослать данное сообщение? (y/n)\n")
+        bot.register_next_step_handler(announcement_msg, process_announcement_confirmation_step,
+                                       recepients_list, announcement_text)
+        return
+
+    elif user_filter.isdigit():
+        user_filter = int(user_filter)
+        if not is_user_exists(user_filter):
+            bot.send_message(user.id, f"Пользователь не найден!")
+            return
+
+        recepients_list.append(user_filter)
+        announcement_msg = bot.send_message(user.id, announcement_text, parse_mode="HTML")
+        time.sleep(0.5)
+        bot.reply_to(announcement_msg, f"Получатели: {data[user_filter]['name']} {data[user_filter]['username']} {user_filter}\n\n"
+                                       "Отправить данное сообщение? (y/n)\n")
+        bot.register_next_step_handler(announcement_msg, process_announcement_confirmation_step,
+                                       recepients_list, announcement_text)
+        return
+
+    elif user_filter[0] == "@":
+        user_filter = get_user_id_by_username(user_filter)
+        if user_filter is None:
+            bot.send_message(user.id, "Пользователь не найден!")
+            return
+
+        recepients_list.append(user_filter)
+        announcement_msg = bot.send_message(user.id, announcement_text, parse_mode="HTML")
+        time.sleep(0.5)
+        bot.reply_to(announcement_msg, f"Получатели: {data[user_filter]['name']} {data[user_filter]['username']} {user_filter}\n\n"
+                                       "Отправить данное сообщение? (y/n)\n")
+        bot.register_next_step_handler(announcement_msg, process_announcement_confirmation_step,
+                                       recepients_list, announcement_text)
+        return
+
+    else:
+        bot.send_message(user.id, "Неверный тип рассылки!\nЖми /announce для справки")
+        return
+
+    # TODO: Вынести повторяющийся код после всех if-ов
+
+
+def process_announcement_confirmation_step(message, recepients_list, announcement_text):
+    user = message.from_user
+
+    if user.id != ADMIN_ID or message.chat.type != "private":
+        return
+
+    if message.text == "y":
+        bot.send_message(user.id, "Рассылка запущена")
+        print("Рассылка запущена")
+    else:
+        bot.send_message(user.id, "Рассылка отменена")
+        print("Рассылка отменена")
+
+        return
+
+    msg_counter = 0
+    log = ""
+    for user_id in recepients_list:
+        try:
+            bot.send_message(user_id, announcement_text, parse_mode="HTML")
+            msg_counter += 1
+            log += f"✉️ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
+            time.sleep(0.5)
+        except Exception as e:
+            # print(e)
+            log += f"❌ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
+
+    log = f"Рассылка завершена!\nОтправлено {msg_counter} из {len(recepients_list)} сообщений." + "\n\nПолучатели:\n" + log
+    bot.send_message(user.id, log)
+    print(log)
+
+
 """=======================HANDLERS======================="""
 
 
