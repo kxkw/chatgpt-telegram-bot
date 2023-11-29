@@ -394,6 +394,13 @@ def process_announcement_message_step(message, user_filter):
         confirmation_text = f"Получатели: юзеры от {user_filter} запросов ({len(recepients_list)})\n\n" \
                             "Разослать данное сообщение? (y/n)\n"
 
+    # Для групповых чатов (id с минусом)
+    elif user_filter[0] == "-" and user_filter[1:].isdigit():
+        user_filter = int(user_filter)
+        recepients_list.append(user_filter)
+        confirmation_text = f"Получатели: чат {user_filter}\n\n" \
+                            "Отправить данное сообщение? (y/n)\n"
+
     elif user_filter.isdigit():
         user_filter = int(user_filter)
         if not is_user_exists(user_filter):
@@ -436,6 +443,17 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
         print("Рассылка запущена")
     else:
         bot.send_message(user.id, "Рассылка отменена")
+        return
+
+    # Если в получателях только один групповой чат
+    if len(recepients_list) == 1 and recepients_list[0] < 0:
+        try:
+            bot.send_message(recepients_list[0], announcement_text, parse_mode="HTML")
+            log = f"✉️ Сообщение отправлено в чат {recepients_list[0]}"
+        except Exception as e:
+            log = f"❌ Ошибка: чат {recepients_list[0]} не найден"
+        bot.send_message(ADMIN_ID, log)
+        print(log)
         return
 
     msg_counter = 0
