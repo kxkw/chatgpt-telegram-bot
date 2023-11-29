@@ -845,10 +845,10 @@ def handle_message(message):
             bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
     else:
         try:
-            bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown")
+            bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown", allow_sending_without_reply=True)
         except telebot.apihelper.ApiTelegramException:
             print(f"\nОшибка отправки из-за форматирования, отправляю без него")
-            bot.reply_to(message, response.choices[0].message.content + user_log)
+            bot.reply_to(message, response.choices[0].message.content + user_log, allow_sending_without_reply=True)
 
     # Если сообщение было в групповом чате, то указать данные о нём
     if message.chat.id < 0:
