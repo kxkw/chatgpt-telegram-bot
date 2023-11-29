@@ -824,7 +824,8 @@ def handle_message(message):
     # Обновляем данные юзера по количеству запросов, использованных токенов и дате последнего запроса
     data[user.id]["tokens"] += request_tokens
     data[user.id]["requests"] += 1
-    data[user.id]["lastdate"] = datetime.datetime.now().strftime(DATE_FORMAT)
+    # получаем текущее время и прибавляем +3 часа
+    data[user.id]["lastdate"] = (datetime.datetime.now() + datetime.timedelta(hours=3)).strftime(DATE_FORMAT)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
