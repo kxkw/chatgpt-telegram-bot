@@ -109,7 +109,7 @@ def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYST
     if prev_answer is not None:
         messages.extend([{"role": "assistant", "content": prev_answer},
                          {"role": "user", "content": user_request}])
-        print("\nЗапрос с контекстом 🤩")
+        # print("\nЗапрос с контекстом 🤩")
     else:
         messages.append({"role": "user", "content": user_request})
         # print("\nЗапрос без контекста")
