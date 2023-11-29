@@ -789,7 +789,8 @@ def handle_message(message):
 
     # Проверяем, есть ли у пользователя токены на балансе
     if data[user.id]["balance"] <= 0:
-        bot.reply_to(message, "У вас закончились токены. Пополните баланс")
+        bot.reply_to(message, 'У вас закончились токены, пополните баланс!\n'
+                              '<span class="tg-spoiler">/help в помощь</span>', parse_mode="HTML")
         return
 
     # Симулируем эффект набора текста, пока бот получает ответ
