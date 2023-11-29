@@ -619,7 +619,6 @@ def handle_prompt_command(message):
                       "которая на все запросы отвечает в стиле Йоды из Star Wars`"
 
             bot.reply_to(message, answer,  parse_mode="Markdown")
-            print("\nNo text provided.")
     else:
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
