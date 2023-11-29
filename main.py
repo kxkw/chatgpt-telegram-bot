@@ -850,14 +850,19 @@ def handle_message(message):
             print(f"\nОшибка отправки из-за форматирования, отправляю без него")
             bot.reply_to(message, response.choices[0].message.content + user_log)
 
+    # Если сообщение было в групповом чате, то указать данные о нём
+    if message.chat.id < 0:
+        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
+    else:
+        chat_line = ""
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * PRICE_CENTS, 3)}\n"
                  f"Юзер: {user.full_name} "
                  f"@{user.username} {user.id}\n"
                  f"Баланс: {data[user.id]['balance']}\n"
-                 f"Чат: {message.chat.title} {message.chat.id}"
-                 f"\n{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
+                 f"{chat_line}"
+                 f"{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
