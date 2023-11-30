@@ -144,7 +144,7 @@ if os.path.isfile(DATAFILE):
     for key in list(data.keys())[1:]:
         data[int(key)] = data.pop(key)
 else:
-    data = {"global": {"requests": 0, "tokens": 0},
+    data = {"global": {"requests": 0, "tokens": 0, "images": 0},
             ADMIN_ID: {"requests": 0, "tokens": 0, "balance": 777777,
                        "name": "АДМИН", "username": "@admin", "lastdate": "01-05-2023 00:00:00"}}
     # Create the file with default values
