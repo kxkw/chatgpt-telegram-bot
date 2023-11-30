@@ -198,12 +198,18 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
         return
 
+    if "images" in data[target_user_id]:
+        images_line = f"images: {data[target_user_id]['images']}\n"
+    else:
+        images_line = ""
+
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
                        f"{data[target_user_id]['name']} " \
                        f"{data[target_user_id]['username']}\n\n" \
                        f"requests: {data[target_user_id]['requests']}\n" \
                        f"tokens: {data[target_user_id]['tokens']}\n" \
+                       f"{images_line}" \
                        f"balance: {data[target_user_id]['balance']}\n" \
                        f"last request: {data[target_user_id]['lastdate']}\n\n"
 
