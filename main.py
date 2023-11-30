@@ -88,7 +88,7 @@ def update_json_file(new_data, file_name=DATAFILE) -> None:
 
 # Function to get user_id by username
 def get_user_id_by_username(username: str) -> Optional[int]:
-    for user_id in list(data.keys())[2:]:
+    for user_id in list(data.keys())[1:]:
         if data[user_id]["username"] == username:
             return user_id
     return None
@@ -109,7 +109,7 @@ def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYST
     if prev_answer is not None:
         messages.extend([{"role": "assistant", "content": prev_answer},
                          {"role": "user", "content": user_request}])
-        print("\nЗапрос с контекстом 🤩")
+        # print("\nЗапрос с контекстом 🤩")
     else:
         messages.append({"role": "user", "content": user_request})
         # print("\nЗапрос без контекста")
@@ -144,7 +144,7 @@ if os.path.isfile(DATAFILE):
     for key in list(data.keys())[1:]:
         data[int(key)] = data.pop(key)
 else:
-    data = {"global": {"requests": 0, "tokens": 0},
+    data = {"global": {"requests": 0, "tokens": 0, "images": 0},
             ADMIN_ID: {"requests": 0, "tokens": 0, "balance": 777777,
                        "name": "АДМИН", "username": "@admin", "lastdate": "01-05-2023 00:00:00"}}
     # Create the file with default values
@@ -767,6 +767,88 @@ def handle_favor_callback(call):
         bot.answer_callback_query(call.id, "Что-то пошло не так...\n\ncallback_data: " + call.data, True)
 
 
+# TODO: внедрить фичу для всех пользователей вместе с премиум запросами, пока только пре-релиз для админа
+# Define the handler for the /imagine command to generate AI image from text via OpenAi
+@bot.message_handler(commands=["i", "img", "image", "imagine"])
+def handle_imagine_command(message):
+    user = message.from_user
+
+    if is_user_blacklisted(user.id):
+        return
+
+    # if not is_user_exists(user.id):
+    #     bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+    #     return
+
+    # Пока что команда доступна только админу
+    if user.id != ADMIN_ID:
+        bot.reply_to(message, "платно")
+        return
+
+    image_prompt = extract_arguments(message.text)
+
+    if image_prompt == "":
+        bot.reply_to(message, "Введите текст для генерации изображения вместе с командой /imagine")
+        return
+
+    # bot.reply_to(message, f"{image_prompt}\n\nГенерирую изображение, подождите немного...")
+
+    log_message = f"\nUser {user.full_name} @{user.username} requested image generation with prompt: {image_prompt}"
+    print(log_message)
+    if user.id != ADMIN_ID:
+        bot.send_message(ADMIN_ID, log_message)
+
+    # Симулируем эффект отправки изображения, пока бот получает ответ
+    bot.send_chat_action(message.chat.id, "upload_photo")
+
+    try:
+        response = openai.Image.create(
+            model="dall-e-3",
+            prompt=image_prompt,
+            size="1024x1024",
+            quality="hd"  # hd and standard, hd costs x2
+        )
+    except openai.error.InvalidRequestError as e:
+        # print(e.http_status)
+        error_text = ("Произошла ошибка при генерации изображения 😵\n\n"
+                      f"Промпт: {image_prompt}\n\n")
+
+        if message.chat.id != ADMIN_ID:
+            bot.send_message(message.chat.id, error_text + str(e))
+        bot.send_message(ADMIN_ID, error_text + str(e.error))
+        print(e.error)
+        return
+
+    # image_url = response['data'][0]['url']
+    image_url = response.data[0].url
+    # revised_prompt = '<span class="tg-spoiler">' + response.data[0].revised_prompt + '</span>'
+    revised_prompt = ""
+
+    try:
+        bot.send_photo(message.chat.id, image_url, caption=revised_prompt, parse_mode="HTML")
+    except telebot.apihelper.ApiTelegramException as e:
+        error_text = "Произошла ошибка при отправке изображения 😵\n\n"
+
+        if message.chat.id != ADMIN_ID:
+            bot.send_message(message.chat.id, error_text)
+        bot.send_message(ADMIN_ID, error_text + str(e))
+        print(error_text + str(e))
+        return
+
+    if "images" in data[user.id]:
+        data[user.id]["images"] += 1
+    else:
+        data[user.id]["images"] = 1
+
+    # Обновляем глобальную статистику по количеству запросов сгенерированных изображений (режим обратной совместимости)
+    if "images" in data["global"]:
+        data["global"]["images"] += 1
+    else:
+        data["global"]["images"] = 1
+
+    update_json_file(data)
+
+
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
@@ -789,7 +871,8 @@ def handle_message(message):
 
     # Проверяем, есть ли у пользователя токены на балансе
     if data[user.id]["balance"] <= 0:
-        bot.reply_to(message, "У вас закончились токены. Пополните баланс")
+        bot.reply_to(message, 'У вас закончились токены, пополните баланс!\n'
+                              '<span class="tg-spoiler">/help в помощь</span>', parse_mode="HTML")
         return
 
     # Симулируем эффект набора текста, пока бот получает ответ
@@ -823,7 +906,8 @@ def handle_message(message):
     # Обновляем данные юзера по количеству запросов, использованных токенов и дате последнего запроса
     data[user.id]["tokens"] += request_tokens
     data[user.id]["requests"] += 1
-    data[user.id]["lastdate"] = datetime.datetime.now().strftime(DATE_FORMAT)
+    # получаем текущее время и прибавляем +3 часа
+    data[user.id]["lastdate"] = (datetime.datetime.now() + datetime.timedelta(hours=3)).strftime(DATE_FORMAT)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
@@ -843,19 +927,24 @@ def handle_message(message):
             bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
     else:
         try:
-            bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown")
+            bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown", allow_sending_without_reply=True)
         except telebot.apihelper.ApiTelegramException:
             print(f"\nОшибка отправки из-за форматирования, отправляю без него")
-            bot.reply_to(message, response.choices[0].message.content + user_log)
+            bot.reply_to(message, response.choices[0].message.content + user_log, allow_sending_without_reply=True)
 
+    # Если сообщение было в групповом чате, то указать данные о нём
+    if message.chat.id < 0:
+        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
+    else:
+        chat_line = ""
     # Формируем лог работы для админа
     admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
                  f"Сессия: {session_tokens} за ¢{round(session_tokens * PRICE_CENTS, 3)}\n"
                  f"Юзер: {user.full_name} "
                  f"@{user.username} {user.id}\n"
                  f"Баланс: {data[user.id]['balance']}\n"
-                 f"Чат: {message.chat.title} {message.chat.id}"
-                 f"\n{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
+                 f"{chat_line}"
+                 f"{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
