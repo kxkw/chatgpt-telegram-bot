@@ -479,7 +479,7 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
     print(log)
 
 
-"""=======================HANDLERS======================="""
+"""====================USER_COMMANDS====================="""
 
 
 # Define the handler for the /start command
