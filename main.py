@@ -140,7 +140,11 @@ def get_recent_active_users(days: int) -> list:
         if user_id == "global":
             continue
 
-        last_request_date = datetime.strptime(user_data["lastdate"], DATE_FORMAT)
+        try:
+            last_request_date = datetime.strptime(user_data["lastdate"], DATE_FORMAT)
+        # Если дата в неправильном формате, то пропускаем строчку (значит у юзера все равно 0 запросов, а Вы - олд)
+        except ValueError:
+            continue
 
         if (current_date - last_request_date).days < days:
             recent_active_users.append((user_id, last_request_date))
