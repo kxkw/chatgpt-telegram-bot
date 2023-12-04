@@ -43,7 +43,7 @@ BACKUPFILE = "data-backup.json"
 
 # Default values for new users, who are not in the data file
 DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
-                "name": "None", "username": "None", "lastdate": "11-09-2001 00:00:00"}
+                "name": "None", "username": "None", "lastdate": "01.01.1990 00:00:00"}
 
 
 """======================FUNCTIONS======================="""
