@@ -261,6 +261,42 @@ def handle_data_command(message):
     bot.send_message(ADMIN_ID, user_data_string)
 
 
+# Define the handler for the admin /recent_users command to get recent active users in past n days
+@bot.message_handler(commands=["recent", "recent_users", "last"])
+def handle_recent_users_command(message):
+    user = message.from_user
+    wrong_input_string = "Укажите целое число дней после команды /recent_users"
+
+    if user.id != ADMIN_ID or message.chat.type != "private":
+        return
+
+    # Получаем аргументы команды
+    num_of_days = extract_arguments(message.text)
+
+    if num_of_days == "":
+        bot.reply_to(message, wrong_input_string)
+        return
+    elif not num_of_days.isdigit():
+        bot.reply_to(message, wrong_input_string)
+        return
+
+    num_of_days = int(num_of_days)
+    if num_of_days < 1:
+        bot.reply_to(message, wrong_input_string)
+        return
+
+    recent_active_users: list = get_recent_active_users(num_of_days)
+    if not recent_active_users:
+        bot.reply_to(message, f"За последние {num_of_days} дней активных пользователей не найдено")
+        return
+
+    answer = f"Активные юзеры за последние {num_of_days} дней: {len(recent_active_users)}\n\n"
+    for user_id in recent_active_users:
+        answer += f"{data[user_id]['name']} {data[user_id]['username']} {user_id}: {data[user_id]['requests']}\n"
+
+    bot.reply_to(message, answer)
+
+
 # Define the handler for the admin /refill command
 @bot.message_handler(commands=["r", "refill"])
 def handle_refill_command(message):
