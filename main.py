@@ -18,6 +18,7 @@ DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 PRICE_1K = 0.002  # price per 1k tokens in USD
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
+UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
 
 NEW_USER_BALANCE = 20000  # balance for new users
 REFERRAL_BONUS = 10000  # bonus for inviting a new user
@@ -913,7 +914,7 @@ def handle_message(message):
     data[user.id]["tokens"] += request_tokens
     data[user.id]["requests"] += 1
     # получаем текущее время и прибавляем +3 часа
-    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=3)).strftime(DATE_FORMAT)
+    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
