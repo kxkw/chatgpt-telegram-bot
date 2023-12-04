@@ -132,6 +132,28 @@ def get_user_referrals(user_id: int) -> list:
     return user_referrals
 
 
+def get_recent_active_users(days: int) -> list:
+    recent_active_users = []
+    current_date = datetime.now() + timedelta(hours=UTC_HOURS_DELTA)
+
+    for user_id, user_data in data.items():
+        if user_id == "global":
+            continue
+
+        last_request_date = datetime.strptime(user_data["lastdate"], DATE_FORMAT)
+
+        if (current_date - last_request_date).days < days:
+            recent_active_users.append((user_id, last_request_date))
+
+    # Sort the list by last_request_date in descending order
+    recent_active_users = sorted(recent_active_users, key=lambda x: x[1], reverse=True)
+
+    # Extract only user_id from the sorted list
+    recent_active_users = [user_id for user_id, _ in recent_active_users]
+
+    return recent_active_users
+
+
 """========================SETUP========================="""
 
 
