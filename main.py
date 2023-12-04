@@ -954,6 +954,12 @@ def handle_message(message):
         print("\nЛимит запросов!")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
         return
+    except Exception as e:
+        print("\nОшибка при запросе по API, OpenAI сбоит!")
+        bot.reply_to(message, "Произошла ошибка на серверах OpenAI.\n"
+                              "Пожалуйста, попробуйте еще раз или повторите запрос позже")
+        print(e)
+        return
 
     # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
