@@ -327,24 +327,26 @@ def handle_refill_command(message):
         if target_user_id is None:
             bot.send_message(ADMIN_ID, not_found_string)
             return
-
-        data[target_user_id]["balance"] += amount
-        update_json_file(data)
-        bot.send_message(ADMIN_ID, success_string)
-
     elif target_user.isdigit():  # Поиск по id пользователя
         target_user_id = int(target_user)
 
         if not is_user_exists(target_user_id):
             bot.send_message(ADMIN_ID, not_found_string)
             return
-
-        data[target_user_id]["balance"] += amount
-        update_json_file(data)
-        bot.send_message(ADMIN_ID, success_string)
-
     else:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    data[target_user_id]["balance"] += amount
+    update_json_file(data)
+    bot.send_message(ADMIN_ID, success_string + f"\nТекущий баланс: {data[target_user_id]['balance']}")
+    try:
+        if amount > 0:
+            bot.send_message(target_user_id, f"Ваш баланс пополнен на {amount} токенов!\n"
+                                             f"Текущий баланс: {data[target_user_id]['balance']}")
+    except Exception as e:
+        bot.send_message(ADMIN_ID, f"Ошибка при уведомлении юзера {target_user}, походу он заблочил бота 🤬")
+        print(e)
 
 
 # Define the handler for the admin /block command
