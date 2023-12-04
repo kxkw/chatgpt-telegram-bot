@@ -5,7 +5,7 @@ import openai
 from dotenv.main import load_dotenv
 import json
 import os
-import datetime
+from datetime import datetime, timedelta
 import time
 
 from telebot.util import extract_arguments
@@ -913,7 +913,7 @@ def handle_message(message):
     data[user.id]["tokens"] += request_tokens
     data[user.id]["requests"] += 1
     # получаем текущее время и прибавляем +3 часа
-    data[user.id]["lastdate"] = (datetime.datetime.now() + datetime.timedelta(hours=3)).strftime(DATE_FORMAT)
+    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=3)).strftime(DATE_FORMAT)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
