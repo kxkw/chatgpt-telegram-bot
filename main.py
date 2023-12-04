@@ -413,7 +413,6 @@ def handle_announce_command(message):
         return
 
     # Получаем аргументы команды (текст после /announce)
-    # TODO: мб сплитануть по пробелу и из строки сделать список аргументов
     user_filter = extract_arguments(message.text)
 
     if user_filter == "":
