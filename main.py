@@ -667,13 +667,12 @@ def handle_stats_command(message):
     if is_user_blacklisted(user_id):
         return
 
-    # Если юзер есть в базе, то выдаем его статистику, иначе просим его зарегистрироваться
-    if is_user_exists(user_id):
-        user_stats = data[user_id]["requests"], data[user_id]["tokens"], data[user_id]["lastdate"]
-        bot.reply_to(message, f"Запросов: {user_stats[0]}\n"
-                              f"Токенов использовано: {user_stats[1]}")
-    else:
+    if not is_user_exists(user_id):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+    user_data = data[user_id]
+    bot.reply_to(message, f"Запросов: {user_data['requests']}\n"
+                          f"Токенов использовано: {user_data['tokens']}")
 
 
 # Define the handler for the /prompt command
