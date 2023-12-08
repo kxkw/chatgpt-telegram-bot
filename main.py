@@ -991,22 +991,28 @@ def handle_message(message):
     # Считаем стоимость запроса в центах
     request_price = request_tokens * PRICE_CENTS
 
-    # формируем лог работы для юзера под каждым сообщением
-    user_log = ""  # \n\nБип-боп
+    # To prevent sending too long messages, we split the response into chunks of 4096 characters
+    split_message = telebot.util.smart_split(response.choices[0].message.content, 4096)
 
-    # Send the response back to the user, but check for `parse_mode` errors
+    error_text = f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: "
+    # Сейчас будет жесткий код
+    # Send the response back to the user, but check for `parse_mode` and `message is too long` errors
     if message.chat.type == "private":
         try:
-            bot.send_message(message.chat.id, response.choices[0].message.content + user_log, parse_mode="Markdown")
-        except telebot.apihelper.ApiTelegramException:
-            print(f"\nОшибка отправки из-за форматирования, отправляю без него")
-            bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
-    else:
+            for string in split_message:
+                bot.send_message(message.chat.id, string, parse_mode="Markdown")
+        except telebot.apihelper.ApiTelegramException as e:
+            print(error_text + str(e))
+            for string in split_message:
+                bot.send_message(message.chat.id, string)
+    else:  # В групповом чате отвечать на конкретное сообщение, а не просто отправлять сообщение в чат
         try:
-            bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown", allow_sending_without_reply=True)
-        except telebot.apihelper.ApiTelegramException:
-            print(f"\nОшибка отправки из-за форматирования, отправляю без него")
-            bot.reply_to(message, response.choices[0].message.content + user_log, allow_sending_without_reply=True)
+            for string in split_message:
+                bot.reply_to(message, string, parse_mode="Markdown", allow_sending_without_reply=True)
+        except telebot.apihelper.ApiTelegramException as e:
+            print(error_text + str(e))
+            for string in split_message:
+                bot.reply_to(message, string, allow_sending_without_reply=True)
 
     # Если сообщение было в групповом чате, то указать данные о нём
     if message.chat.id < 0:
