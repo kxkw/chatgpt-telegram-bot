@@ -5,7 +5,7 @@ import openai
 from dotenv.main import load_dotenv
 import json
 import os
-import datetime
+from datetime import datetime, timedelta
 import time
 
 from telebot.util import extract_arguments
@@ -13,11 +13,12 @@ from telebot import types
 
 
 MODEL = "gpt-3.5-turbo-1106"
-MAX_REQUEST_TOKENS = 1800
+MAX_REQUEST_TOKENS = 3000
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 PRICE_1K = 0.002  # price per 1k tokens in USD
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
+UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
 
 NEW_USER_BALANCE = 20000  # balance for new users
 REFERRAL_BONUS = 10000  # bonus for inviting a new user
@@ -43,7 +44,7 @@ BACKUPFILE = "data-backup.json"
 
 # Default values for new users, who are not in the data file
 DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
-                "name": "None", "username": "None", "lastdate": "11-09-2001 00:00:00"}
+                "name": "None", "username": "None", "lastdate": "01.01.1990 00:00:00"}
 
 
 """======================FUNCTIONS======================="""
@@ -131,6 +132,32 @@ def get_user_referrals(user_id: int) -> list:
     return user_referrals
 
 
+def get_recent_active_users(days: int) -> list:
+    recent_active_users = []
+    current_date = datetime.now() + timedelta(hours=UTC_HOURS_DELTA)
+
+    for user_id, user_data in data.items():
+        if user_id == "global":
+            continue
+
+        try:
+            last_request_date = datetime.strptime(user_data["lastdate"], DATE_FORMAT)
+        # Если дата в неправильном формате, то пропускаем строчку (значит у юзера все равно 0 запросов, а Вы - олд)
+        except ValueError:
+            continue
+
+        if (current_date - last_request_date).days < days:
+            recent_active_users.append((user_id, last_request_date))
+
+    # Sort the list by last_request_date in descending order
+    recent_active_users = sorted(recent_active_users, key=lambda x: x[1], reverse=True)
+
+    # Extract only user_id from the sorted list
+    recent_active_users = [user_id for user_id, _ in recent_active_users]
+
+    return recent_active_users
+
+
 """========================SETUP========================="""
 
 
@@ -198,14 +225,24 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
         return
 
+    if "images" in data[target_user_id]:
+        images_line = f"images: {data[target_user_id]['images']}\n"
+    else:
+        images_line = ""
+
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
                        f"{data[target_user_id]['name']} " \
                        f"{data[target_user_id]['username']}\n\n" \
                        f"requests: {data[target_user_id]['requests']}\n" \
                        f"tokens: {data[target_user_id]['tokens']}\n" \
+                       f"{images_line}" \
                        f"balance: {data[target_user_id]['balance']}\n" \
-                       f"last request: {data[target_user_id]['lastdate']}\n\n"
+                       f"last request: {data[target_user_id]['lastdate']}\n"
+
+    # Calculate user cost in cents and round it to 3 digits after the decimal point
+    user_cost_cents = round(data[target_user_id]['tokens'] * PRICE_CENTS, 3)
+    user_data_string += f"user cost: ¢{user_cost_cents}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
     if "favors" in data[target_user_id]:
@@ -230,6 +267,42 @@ def handle_data_command(message):
         user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
 
     bot.send_message(ADMIN_ID, user_data_string)
+
+
+# Define the handler for the admin /recent_users command to get recent active users in past n days
+@bot.message_handler(commands=["recent", "recent_users", "last"])
+def handle_recent_users_command(message):
+    user = message.from_user
+    wrong_input_string = "Укажите целое число дней после команды /recent_users"
+
+    if user.id != ADMIN_ID or message.chat.type != "private":
+        return
+
+    # Получаем аргументы команды
+    num_of_days = extract_arguments(message.text)
+
+    if num_of_days == "":
+        bot.reply_to(message, wrong_input_string)
+        return
+    elif not num_of_days.isdigit():
+        bot.reply_to(message, wrong_input_string)
+        return
+
+    num_of_days = int(num_of_days)
+    if num_of_days < 1:
+        bot.reply_to(message, wrong_input_string)
+        return
+
+    recent_active_users: list = get_recent_active_users(num_of_days)
+    if not recent_active_users:
+        bot.reply_to(message, f"За последние {num_of_days} дней активных пользователей не найдено")
+        return
+
+    answer = f"Активные юзеры за последние {num_of_days} дней: {len(recent_active_users)}\n\n"
+    for user_id in recent_active_users:
+        answer += f"{data[user_id]['name']} {data[user_id]['username']} {user_id}: {data[user_id]['requests']}\n"
+
+    bot.reply_to(message, answer)
 
 
 # Define the handler for the admin /refill command
@@ -262,24 +335,26 @@ def handle_refill_command(message):
         if target_user_id is None:
             bot.send_message(ADMIN_ID, not_found_string)
             return
-
-        data[target_user_id]["balance"] += amount
-        update_json_file(data)
-        bot.send_message(ADMIN_ID, success_string)
-
     elif target_user.isdigit():  # Поиск по id пользователя
         target_user_id = int(target_user)
 
         if not is_user_exists(target_user_id):
             bot.send_message(ADMIN_ID, not_found_string)
             return
-
-        data[target_user_id]["balance"] += amount
-        update_json_file(data)
-        bot.send_message(ADMIN_ID, success_string)
-
     else:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    data[target_user_id]["balance"] += amount
+    update_json_file(data)
+    bot.send_message(ADMIN_ID, success_string + f"\nТекущий баланс: {data[target_user_id]['balance']}")
+    try:
+        if amount > 0:
+            bot.send_message(target_user_id, f"Ваш баланс пополнен на {amount} токенов!\n"
+                                             f"Текущий баланс: {data[target_user_id]['balance']}")
+    except Exception as e:
+        bot.send_message(ADMIN_ID, f"Ошибка при уведомлении юзера {target_user}, походу он заблочил бота 🤬")
+        print(e)
 
 
 # Define the handler for the admin /block command
@@ -342,7 +417,6 @@ def handle_announce_command(message):
         return
 
     # Получаем аргументы команды (текст после /announce)
-    # TODO: мб сплитануть по пробелу и из строки сделать список аргументов
     user_filter = extract_arguments(message.text)
 
     if user_filter == "":
@@ -473,7 +547,7 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
     print(log)
 
 
-"""=======================HANDLERS======================="""
+"""====================USER_COMMANDS====================="""
 
 
 # Define the handler for the /start command
@@ -597,13 +671,25 @@ def handle_stats_command(message):
     if is_user_blacklisted(user_id):
         return
 
-    # Если юзер есть в базе, то выдаем его статистику, иначе просим его зарегистрироваться
-    if is_user_exists(user_id):
-        user_stats = data[user_id]["requests"], data[user_id]["tokens"], data[user_id]["lastdate"]
-        bot.reply_to(message, f"Запросов: {user_stats[0]}\n"
-                              f"Токенов использовано: {user_stats[1]}")
-    else:
+    if not is_user_exists(user_id):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+
+    user_data = data[user_id]
+    user_data_string = (f"Запросов: {user_data['requests']}\n"
+                        f"Токенов использовано: {user_data['tokens']}\n\n")
+
+    user_referrals_list: list = get_user_referrals(user_id)
+    if user_referrals_list:
+        user_data_string += f"Вы пригласили {len(user_referrals_list)} пользователей:\n"
+        for ref in user_referrals_list:
+            user_data_string += f"{data[ref]['name']} {data[ref]['username']}\n"
+
+    # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
+    if "ref_id" in user_data:
+        referrer = user_data["ref_id"]
+        user_data_string += f"\nВас пригласил: {data[referrer]['name']} {data[referrer]['username']}\n\n"
+
+    bot.reply_to(message, user_data_string)
 
 
 # Define the handler for the /prompt command
@@ -889,6 +975,12 @@ def handle_message(message):
         print("\nЛимит запросов!")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
         return
+    except Exception as e:
+        print("\nОшибка при запросе по API, OpenAI сбоит!")
+        bot.reply_to(message, "Произошла ошибка на серверах OpenAI.\n"
+                              "Пожалуйста, попробуйте еще раз или повторите запрос позже")
+        print(e)
+        return
 
     # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
@@ -907,7 +999,7 @@ def handle_message(message):
     data[user.id]["tokens"] += request_tokens
     data[user.id]["requests"] += 1
     # получаем текущее время и прибавляем +3 часа
-    data[user.id]["lastdate"] = (datetime.datetime.now() + datetime.timedelta(hours=3)).strftime(DATE_FORMAT)
+    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
@@ -915,22 +1007,28 @@ def handle_message(message):
     # Считаем стоимость запроса в центах
     request_price = request_tokens * PRICE_CENTS
 
-    # формируем лог работы для юзера под каждым сообщением
-    user_log = ""  # \n\nБип-боп
+    # To prevent sending too long messages, we split the response into chunks of 4096 characters
+    split_message = telebot.util.smart_split(response.choices[0].message.content, 4096)
 
-    # Send the response back to the user, but check for `parse_mode` errors
+    error_text = f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: "
+    # Сейчас будет жесткий код
+    # Send the response back to the user, but check for `parse_mode` and `message is too long` errors
     if message.chat.type == "private":
         try:
-            bot.send_message(message.chat.id, response.choices[0].message.content + user_log, parse_mode="Markdown")
-        except telebot.apihelper.ApiTelegramException:
-            print(f"\nОшибка отправки из-за форматирования, отправляю без него")
-            bot.send_message(message.chat.id, response.choices[0].message.content + user_log)
-    else:
+            for string in split_message:
+                bot.send_message(message.chat.id, string, parse_mode="Markdown")
+        except telebot.apihelper.ApiTelegramException as e:
+            print(error_text + str(e))
+            for string in split_message:
+                bot.send_message(message.chat.id, string)
+    else:  # В групповом чате отвечать на конкретное сообщение, а не просто отправлять сообщение в чат
         try:
-            bot.reply_to(message, response.choices[0].message.content + user_log, parse_mode="Markdown", allow_sending_without_reply=True)
-        except telebot.apihelper.ApiTelegramException:
-            print(f"\nОшибка отправки из-за форматирования, отправляю без него")
-            bot.reply_to(message, response.choices[0].message.content + user_log, allow_sending_without_reply=True)
+            for string in split_message:
+                bot.reply_to(message, string, parse_mode="Markdown", allow_sending_without_reply=True)
+        except telebot.apihelper.ApiTelegramException as e:
+            print(error_text + str(e))
+            for string in split_message:
+                bot.reply_to(message, string, allow_sending_without_reply=True)
 
     # Если сообщение было в групповом чате, то указать данные о нём
     if message.chat.id < 0:
