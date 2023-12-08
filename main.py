@@ -675,8 +675,21 @@ def handle_stats_command(message):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
     user_data = data[user_id]
-    bot.reply_to(message, f"Запросов: {user_data['requests']}\n"
-                          f"Токенов использовано: {user_data['tokens']}")
+    user_data_string = (f"Запросов: {user_data['requests']}\n"
+                        f"Токенов использовано: {user_data['tokens']}\n\n")
+
+    user_referrals_list: list = get_user_referrals(user_id)
+    if user_referrals_list:
+        user_data_string += f"Вы пригласили {len(user_referrals_list)} пользователей:\n"
+        for ref in user_referrals_list:
+            user_data_string += f"{data[ref]['name']} {data[ref]['username']}\n"
+
+    # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
+    if "ref_id" in user_data:
+        referrer = user_data["ref_id"]
+        user_data_string += f"\nВас пригласил: {data[referrer]['name']} {data[referrer]['username']}\n\n"
+
+    bot.reply_to(message, user_data_string)
 
 
 # Define the handler for the /prompt command
