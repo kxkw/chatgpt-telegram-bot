@@ -238,7 +238,11 @@ def handle_data_command(message):
                        f"tokens: {data[target_user_id]['tokens']}\n" \
                        f"{images_line}" \
                        f"balance: {data[target_user_id]['balance']}\n" \
-                       f"last request: {data[target_user_id]['lastdate']}\n\n"
+                       f"last request: {data[target_user_id]['lastdate']}\n"
+
+    # Calculate user cost in cents and round it to 3 digits after the decimal point
+    user_cost_cents = round(data[target_user_id]['tokens'] * PRICE_CENTS, 3)
+    user_data_string += f"user cost: ¢{user_cost_cents}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
     if "favors" in data[target_user_id]:
