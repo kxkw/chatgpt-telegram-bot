@@ -972,7 +972,7 @@ def handle_message(message):
         else:
             response = call_chatgpt(message.text, system_prompt=get_user_prompt(user.id))
     except openai.error.RateLimitError:
-        print("\nЛимит запросов!")
+        print("\nЛимит запросов! Или закончились деньги на счету OpenAI")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
         return
     except Exception as e:
