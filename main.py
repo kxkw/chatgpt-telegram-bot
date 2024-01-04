@@ -949,7 +949,7 @@ def handle_message(message):
         print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
         return
 
-    # Если пользователя нет в базе, то добавляем его с дефолтными значениями
+    # Если пользователя нет в базе, то перенаправляем его на команду /start и выходим
     if not is_user_exists(user.id):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
                               "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
