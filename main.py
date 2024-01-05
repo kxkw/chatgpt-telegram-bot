@@ -14,6 +14,8 @@ from telebot import types
 
 MODEL = "gpt-3.5-turbo-1106"
 MAX_REQUEST_TOKENS = 3000
+MODEL = "gpt-3.5-turbo-1106"  # 16k
+MAX_REQUEST_TOKENS = 3000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 PRICE_1K = 0.002  # price per 1k tokens in USD
