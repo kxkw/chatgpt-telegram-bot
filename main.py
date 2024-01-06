@@ -972,10 +972,31 @@ def handle_message(message):
                               "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
 
-    # Проверяем, есть ли у пользователя токены на балансе
-    if data[user.id]["balance"] <= 0:
-        bot.reply_to(message, 'У вас закончились токены, пополните баланс!\n'
-                              '<span class="tg-spoiler">/help в помощь</span>', parse_mode="HTML")
+    user_model: str = get_user_model(user.id)
+    # print("Модель юзера: " + user_model)
+    # Проверяем, есть ли у пользователя токены на балансе в зависимости от выбранной языковой модели
+    if user_model == MODEL:
+        if data[user.id]["balance"] <= 0:
+            bot.reply_to(message, 'У вас закончились токены, пополните баланс!\n'
+                                  '<span class="tg-spoiler">/help в помощь</span>', parse_mode="HTML")
+            return
+        balance_type = "balance"
+        tokens_type = "tokens"
+        current_price_cents = PRICE_CENTS
+        admin_log = ""
+
+    elif user_model == PREMIUM_MODEL:
+        if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
+            bot.reply_to(message, 'У вас закончились премиальные токены, пополните баланс!', parse_mode="HTML")
+            return
+        balance_type = "premium_balance"
+        tokens_type = "premium_tokens"
+        current_price_cents = PREMIUM_PRICE_CENTS
+        admin_log = "ПРЕМ "
+
+    else:  # Этого случая не может произойти, но пусть будет описан
+        bot.reply_to(message, 'У вас нет доступа к этой модели, обратитесь к админу!')
+        print(f"\nUser {user.full_name} @{user.username} has no access to model {user_model}")
         return
 
     # Симулируем эффект набора текста, пока бот получает ответ
@@ -1004,25 +1025,33 @@ def handle_message(message):
     session_tokens += request_tokens
     request_number += 1
 
-    # Обновляем глобальную статистику по количеству запросов и использованных токенов
-    data["global"]["tokens"] += request_tokens
+    # Обновляем глобальную статистику по количеству запросов и использованных токенов (режим обратной совместимости с версией без премиум токенов)
     data["global"]["requests"] += 1
+    if tokens_type in data["global"]:
+        data["global"][tokens_type] += request_tokens
+    else:
+        data["global"][tokens_type] = request_tokens
 
     # Если юзер не админ, то списываем токены с баланса
     if user.id != ADMIN_ID:
-        data[user.id]["balance"] -= request_tokens
+        data[user.id][balance_type] -= request_tokens
 
-    # Обновляем данные юзера по количеству запросов, использованных токенов и дате последнего запроса
-    data[user.id]["tokens"] += request_tokens
     data[user.id]["requests"] += 1
+
+    # Обновляем данные юзера по количеству использованных токенов (режим обратной совместимости с версией без премиум токенов)
+    if tokens_type in data[user.id]:
+        data[user.id][tokens_type] += request_tokens
+    else:
+        data[user.id][tokens_type] = request_tokens
+
     # получаем текущее время и прибавляем +3 часа
     data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
 
     # Записываем инфу о количестве запросов и токенах в файл
     update_json_file(data)
 
-    # Считаем стоимость запроса в центах
-    request_price = request_tokens * PRICE_CENTS
+    # Считаем стоимость запроса в центах в зависимости от выбранной модели
+    request_price = request_tokens * current_price_cents
 
     # To prevent sending too long messages, we split the response into chunks of 4096 characters
     split_message = telebot.util.smart_split(response.choices[0].message.content, 4096)
