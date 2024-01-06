@@ -12,13 +12,15 @@ from telebot.util import extract_arguments
 from telebot import types
 
 
-MODEL = "gpt-3.5-turbo-1106"
-MAX_REQUEST_TOKENS = 3000
+
 MODEL = "gpt-3.5-turbo-1106"  # 16k
+PREMIUM_MODEL = "gpt-4-1106-preview"  # 128k tokens context window
 MAX_REQUEST_TOKENS = 3000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 PRICE_1K = 0.002  # price per 1k tokens in USD
+PREMIUM_PRICE_1K = 0.02  # price per 1k tokens in USD for premium model
+
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
 
@@ -182,6 +184,7 @@ else:
 
 # Calculate the price per token in cents
 PRICE_CENTS = PRICE_1K / 10
+PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
 
 # Session token and request counters
 session_tokens, request_number = 0, 0
