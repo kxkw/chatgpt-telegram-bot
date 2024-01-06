@@ -162,6 +162,18 @@ def get_recent_active_users(days: int) -> list:
     return recent_active_users
 
 
+# Function to get user current model
+def get_user_model(user_id: int) -> str:
+    if data[user_id].get("lang_model") is None:
+        return MODEL
+    else:
+        model = str(data[user_id]["lang_model"])
+        if model == "premium":
+            return PREMIUM_MODEL
+        else:
+            return MODEL
+
+
 """========================SETUP========================="""
 
 
