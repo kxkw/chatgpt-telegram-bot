@@ -325,8 +325,9 @@ def handle_recent_users_command(message):
 # Define the handler for the admin /refill command
 @bot.message_handler(commands=["r", "refill"])
 def handle_refill_command(message):
-    wrong_input_string = "Укажите @username/id пользователя и сумму пополнения после команды\n\n" \
-                         "Пример: `/refill @username 1000`"
+    wrong_input_string = ("Укажите @username/id пользователя и сумму пополнения после команды.\n"
+                          "Допишите `premium` последним аргументом, чтобы пополнить баланс премиум токенов.\n\n"
+                          "Пример: `/refill @username 1000`")
 
     # Проверки на доступность команды
     if message.from_user.id != ADMIN_ID:  # Если пользователь не админ
