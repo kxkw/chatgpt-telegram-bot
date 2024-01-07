@@ -337,15 +337,31 @@ def handle_refill_command(message):
         return
 
     try:
-        target_user, amount = extract_arguments(message.text).split()
-        amount = int(amount)
+        args = extract_arguments(message.text).split()
+        amount = int(args[1])
     except ValueError:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
         return
 
-    not_found_string = f"Пользователь {target_user} не найден"
-    success_string = f"Баланс пользователя {target_user} успешно пополнен на {amount} токенов"
+    target_user = args[0]
 
+    not_found_string = f"Пользователь {target_user} не найден"
+    success_string = f"Баланс пользователя {target_user} успешно пополнен на {amount} токенов."
+
+    # Определяем тип баланса для пополнения в зависимости от третьего аргумента (обычный или премиум)
+    balance_type = args[2] if len(args) > 2 else None
+    if balance_type is None:
+        balance_type = "balance"
+        prefix = ""  # префикс для сообщений
+    elif balance_type in ["premium", "prem", "p"]:
+        balance_type = "premium_balance"
+        success_string = "ПРЕМИУМ " + success_string
+        prefix = "премиум "
+    else:
+        bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    # Находим айди юзера, если он есть в базе, иначе выходим
     if target_user[0] == '@':  # Поиск по @username
         target_user_id = get_user_id_by_username(target_user)
 
@@ -362,13 +378,18 @@ def handle_refill_command(message):
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
         return
 
-    data[target_user_id]["balance"] += amount
+    # Сначала проверяем, есть ли такой тип баланса у юзера (если нет, то создаем), а потом уже пополняем
+    if data[target_user_id].get(balance_type) is None:
+        data[target_user_id][balance_type] = 0
+
+    data[target_user_id][balance_type] += amount
+
     update_json_file(data)
-    bot.send_message(ADMIN_ID, success_string + f"\nТекущий баланс: {data[target_user_id]['balance']}")
+    bot.send_message(ADMIN_ID, success_string + f"\nТекущий {prefix}баланс: {data[target_user_id][balance_type]}")
     try:
         if amount > 0:
-            bot.send_message(target_user_id, f"Ваш баланс пополнен на {amount} токенов!\n"
-                                             f"Текущий баланс: {data[target_user_id]['balance']}")
+            bot.send_message(target_user_id, f"Ваш баланс пополнен на {amount} {prefix}токенов!\n"
+                                             f"Текущий {prefix}баланс: {data[target_user_id][balance_type]}")
     except Exception as e:
         bot.send_message(ADMIN_ID, f"Ошибка при уведомлении юзера {target_user}, походу он заблочил бота 🤬")
         print(e)
