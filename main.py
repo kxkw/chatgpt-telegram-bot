@@ -342,6 +342,9 @@ def handle_refill_command(message):
     except ValueError:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
         return
+    except IndexError:
+        bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
+        return
 
     target_user = args[0]
 
