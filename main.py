@@ -791,6 +791,41 @@ def handle_reset_prompt_command(message):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
 
+# Define the handler for the /switch_model command to change language model
+@bot.message_handler(commands=["sw", "switch", "switch_model", "model"])
+def handle_switch_model_command(message):
+    user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
+
+    if not is_user_exists(user_id):
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        return
+
+    user_model = get_user_model(user_id)
+
+    # Определяем целевую языковую модель в зависимости от текущей
+    if user_model == MODEL:
+        target_model_type = "premium"
+        target_model = PREMIUM_MODEL
+        postfix = "(ПРЕМИУМ)\n\nВнимание! Генерация ответа с данной моделью может занимать до двух минут!"
+    elif user_model == PREMIUM_MODEL:
+        target_model_type = "default"
+        target_model = MODEL
+        postfix = "(обычная)"
+    else:  # Условие недостижимо, но на всякий случай
+        bot.reply_to(message, f"Ошибка при смене модели, перешлите это сообщение админу (+компенсация 50к токенов)\n"
+                              f"user_id: {user_id}\nМодель юзера: {user_model}")
+        return
+
+    data[user_id]["lang_model"] = target_model_type
+    update_json_file(data)
+
+    bot.reply_to(message, f"Языковая модель успешно изменена!\n\n*Текущая модель*: {target_model} {postfix}", parse_mode="Markdown")
+    print(f"Модель пользователя {user_id} изменена на {target_model_type}")
+
+
 # Handler for the /ask_favor command
 @bot.message_handler(commands=["ask_favor", "askfavor", "favor"])
 def handle_ask_favor_command(message):
