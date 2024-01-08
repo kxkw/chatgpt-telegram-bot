@@ -721,7 +721,7 @@ def handle_topup_command(message):
 
 
 # Define the handler for the /stats command
-@bot.message_handler(commands=["stats"])
+@bot.message_handler(commands=["stats", "profile"])
 def handle_stats_command(message):
     user_id = message.from_user.id
 
@@ -733,7 +733,8 @@ def handle_stats_command(message):
 
     user_data = data[user_id]
     user_data_string = (f"Запросов: {user_data['requests']}\n"
-                        f"Токенов использовано: {user_data['tokens']}\n\n")
+                        f"Токенов использовано: {user_data['tokens']}\n"
+                        f"Премиум токенов использовано: {user_data.get('premium_tokens', 0)}\n\n")
 
     user_referrals_list: list = get_user_referrals(user_id)
     if user_referrals_list:
