@@ -247,6 +247,12 @@ def handle_data_command(message):
     else:
         images_line = ""
 
+    if data[target_user_id].get("premium_balance") is not None:
+        premium_string = (f"premium tokens: {data[target_user_id].get('premium_tokens', 0)}\n"
+                          f"premium balance: {data[target_user_id]['premium_balance']}\n\n")
+    else:
+        premium_string = ""
+
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
                        f"{data[target_user_id]['name']} " \
@@ -254,7 +260,8 @@ def handle_data_command(message):
                        f"requests: {data[target_user_id]['requests']}\n" \
                        f"tokens: {data[target_user_id]['tokens']}\n" \
                        f"{images_line}" \
-                       f"balance: {data[target_user_id]['balance']}\n" \
+                       f"balance: {data[target_user_id]['balance']}\n\n" \
+                       f"{premium_string}" \
                        f"last request: {data[target_user_id]['lastdate']}\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
