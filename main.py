@@ -684,12 +684,19 @@ def handle_balance_command(message):
     if is_user_blacklisted(user_id):
         return
 
-    # Если юзер есть в базе, то выдаем его баланс, иначе просим его зарегистрироваться
-    if is_user_exists(user_id):
-        balance = data[user_id]["balance"]
-        bot.reply_to(message, f"Ваш баланс: {balance} токенов")
-    else:
+    if not is_user_exists(user_id):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        return
+
+    # Если юзер есть в базе, то выдаем его баланс
+    balance = data[user_id]["balance"]
+    prem_balance = data[user_id].get("premium_balance", 0)  # Если поля "premium_balance" нет в БД, то выводим 0
+
+    balance_string = (f"Токены: {balance}\n"
+                      f"Премиум токены: {prem_balance}\n\n"
+                      f"Используйте команду /switch_model, чтобы переключить используемую языковую модель\n")
+
+    bot.reply_to(message, balance_string)
 
 
 # Define the handler for the /topup command
