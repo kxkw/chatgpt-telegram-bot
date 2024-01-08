@@ -174,6 +174,14 @@ def get_user_model(user_id: int) -> str:
             return MODEL
 
 
+# Function to calculate the cost of the user requests
+def calculate_cost(tokens: int, premium_tokens: int = 0) -> float:
+    tokens_cost = tokens * PRICE_CENTS
+    premium_tokens_cost = premium_tokens * PREMIUM_PRICE_CENTS
+    total_cost = tokens_cost + premium_tokens_cost
+    return total_cost
+
+
 """========================SETUP========================="""
 
 
