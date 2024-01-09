@@ -1090,9 +1090,9 @@ def handle_message(message):
     # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
         if message.reply_to_message is not None and message.reply_to_message.from_user.id == bot.get_me().id:
-            response = call_chatgpt(message.text, message.reply_to_message.text, get_user_prompt(user.id))
+            response = call_chatgpt(message.text, lang_model=user_model, prev_answer=message.reply_to_message.text, system_prompt=get_user_prompt(user.id))
         else:
-            response = call_chatgpt(message.text, system_prompt=get_user_prompt(user.id))
+            response = call_chatgpt(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id))
     except openai.error.RateLimitError:
         print("\nЛимит запросов! Или закончились деньги на счету OpenAI")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
