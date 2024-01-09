@@ -108,7 +108,7 @@ def get_user_prompt(user_id: int) -> str:
 
 
 # Function to call the OpenAI API and get the response
-def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
+def call_chatgpt(user_request: str, lang_model=MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
     messages = [{"role": "system", "content": system_prompt}]
 
     if prev_answer is not None:
@@ -120,7 +120,7 @@ def call_chatgpt(user_request: str, prev_answer=None, system_prompt=DEFAULT_SYST
         # print("\nЗапрос без контекста")
 
     return openai.ChatCompletion.create(
-        model=MODEL,
+        model=lang_model,
         max_tokens=MAX_REQUEST_TOKENS,
         messages=messages
     )
