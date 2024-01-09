@@ -207,7 +207,7 @@ PRICE_CENTS = PRICE_1K / 10
 PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
 
 # Session token and request counters
-session_tokens, request_number = 0, 0
+request_number, session_tokens, premium_session_tokens = 0, 0, 0
 
 
 """====================ADMIN_COMMANDS===================="""
@@ -1039,7 +1039,7 @@ def handle_imagine_command(message):
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    global session_tokens, request_number, data
+    global session_tokens, premium_session_tokens, request_number, data
     user = message.from_user
 
     if is_user_blacklisted(user.id):
@@ -1106,8 +1106,12 @@ def handle_message(message):
 
     # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
-    session_tokens += request_tokens
     request_number += 1
+
+    if user_model == PREMIUM_MODEL:
+        premium_session_tokens += request_tokens
+    else:
+        session_tokens += request_tokens
 
     # Обновляем глобальную статистику по количеству запросов и использованных токенов (режим обратной совместимости с версией без премиум токенов)
     data["global"]["requests"] += 1
@@ -1165,14 +1169,14 @@ def handle_message(message):
         chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
     else:
         chat_line = ""
+
     # Формируем лог работы для админа
-    admin_log = (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
-                 f"Сессия: {session_tokens} за ¢{round(session_tokens * PRICE_CENTS, 3)}\n"
-                 f"Юзер: {user.full_name} "
-                 f"@{user.username} {user.id}\n"
-                 f"Баланс: {data[user.id]['balance']}\n"
-                 f"{chat_line}"
-                 f"{data['global']} ¢{round(data['global']['tokens'] * PRICE_CENTS, 3)}")
+    admin_log += (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
+                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens), 3)}\n"
+                  f"Юзер: {user.full_name} @{user.username} {user.id}\n"
+                  f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
+                  f"{chat_line}"
+                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0)), 3)}\n")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
