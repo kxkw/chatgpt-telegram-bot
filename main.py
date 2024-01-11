@@ -20,6 +20,7 @@ DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 PRICE_1K = 0.002  # price per 1k tokens in USD
 PREMIUM_PRICE_1K = 0.02  # price per 1k tokens in USD for premium model
+IMAGE_PRICE = 0.08  # price per generated image in USD
 
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
@@ -205,6 +206,7 @@ else:
 # Calculate the price per token in cents
 PRICE_CENTS = PRICE_1K / 10
 PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
+IMAGE_PRICE_CENTS = IMAGE_PRICE * 100
 
 # Session token and request counters
 request_number, session_tokens, premium_session_tokens, session_images = 0, 0, 0, 0
