@@ -715,10 +715,13 @@ def handle_balance_command(message):
     # Если юзер есть в базе, то выдаем его баланс
     balance = data[user_id]["balance"]
     prem_balance = data[user_id].get("premium_balance", 0)  # Если поля "premium_balance" нет в БД, то выводим 0
+    image_balance = data[user_id].get("image_balance", 0)
 
     balance_string = (f"Токены: {balance}\n"
-                      f"Премиум токены: {prem_balance}\n\n"
-                      f"Используйте команду /switch_model, чтобы переключить используемую языковую модель\n")
+                      f"Премиум токены: {prem_balance}\n"
+                      f"Генерации изображений: {image_balance}\n\n"
+                      f"Используйте команду /switch_model, чтобы переключать используемую языковую модель для запросов. "
+                      f"Для генерации изображений используйте команду /imagine\n")
 
     bot.reply_to(message, balance_string)
 
