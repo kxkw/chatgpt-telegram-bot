@@ -340,8 +340,9 @@ def handle_recent_users_command(message):
 # Define the handler for the admin /refill command
 @bot.message_handler(commands=["r", "refill"])
 def handle_refill_command(message):
-    wrong_input_string = ("Укажите @username/id пользователя и сумму пополнения после команды.\n"
-                          "Допишите `premium` последним аргументом, чтобы пополнить баланс премиум токенов.\n\n"
+    wrong_input_string = ("Укажите @username/id пользователя и сумму пополнения после команды.\n\n"
+                          "Допишите `premium` последним аргументом, чтобы пополнить баланс премиум токенов. "
+                          "Или `image`, чтобы пополнить баланс для генерации изображений.\n\n"
                           "Пример: `/refill @username 1000`")
 
     # Проверки на доступность команды
@@ -367,7 +368,7 @@ def handle_refill_command(message):
     not_found_string = f"Пользователь {target_user} не найден"
     success_string = f"Баланс пользователя {target_user} успешно пополнен на {amount} токенов."
 
-    # Определяем тип баланса для пополнения в зависимости от третьего аргумента (обычный или премиум)
+    # Определяем тип баланса для пополнения в зависимости от третьего аргумента (обычный, премиум или генерации изображений)
     balance_type = args[2] if len(args) > 2 else None
     if balance_type is None:
         balance_type = "balance"
@@ -376,6 +377,10 @@ def handle_refill_command(message):
         balance_type = "premium_balance"
         success_string = "ПРЕМИУМ " + success_string
         prefix = "премиум "
+    elif balance_type in ["images", "image", "img", "i"]:
+        balance_type = "image_balance"
+        success_string = "IMAGE " + success_string
+        prefix = "image "
     else:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
         return
