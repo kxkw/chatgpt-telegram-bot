@@ -250,16 +250,17 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
         return
 
-    if "images" in data[target_user_id]:
-        images_line = f"images: {data[target_user_id]['images']}\n"
-    else:
-        images_line = ""
-
     if data[target_user_id].get("premium_balance") is not None:
         premium_string = (f"premium tokens: {data[target_user_id].get('premium_tokens', 0)}\n"
                           f"premium balance: {data[target_user_id]['premium_balance']}\n\n")
     else:
         premium_string = ""
+
+    if "image_balance" in data[target_user_id]:
+        images_string = (f"images: {data[target_user_id].get('images', 0)}\n"
+                         f"image balance: {data[target_user_id]['image_balance']}\n\n")
+    else:
+        images_string = ""
 
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
@@ -267,9 +268,9 @@ def handle_data_command(message):
                        f"{data[target_user_id]['username']}\n\n" \
                        f"requests: {data[target_user_id]['requests']}\n" \
                        f"tokens: {data[target_user_id]['tokens']}\n" \
-                       f"{images_line}" \
                        f"balance: {data[target_user_id]['balance']}\n\n" \
                        f"{premium_string}" \
+                       f"{images_string}" \
                        f"last request: {data[target_user_id]['lastdate']}\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
