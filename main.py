@@ -277,7 +277,7 @@ def handle_data_command(message):
                        f"last request: {data[target_user_id]['lastdate']}\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
-    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0))
+    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0), data[target_user_id].get('images', 0))
     user_data_string += f"user cost: ¢{round(user_cost_cents, 3)}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
