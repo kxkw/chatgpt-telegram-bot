@@ -20,6 +20,7 @@ DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 PRICE_1K = 0.002  # price per 1k tokens in USD
 PREMIUM_PRICE_1K = 0.02  # price per 1k tokens in USD for premium model
+IMAGE_PRICE = 0.08  # price per generated image in USD
 
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
@@ -175,10 +176,11 @@ def get_user_model(user_id: int) -> str:
 
 
 # Function to calculate the cost of the user requests (default + premium) in cents
-def calculate_cost(tokens: int, premium_tokens: int = 0) -> float:
+def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> float:
     tokens_cost = tokens * PRICE_CENTS
     premium_tokens_cost = premium_tokens * PREMIUM_PRICE_CENTS
-    total_cost = tokens_cost + premium_tokens_cost
+    images_cost = images * IMAGE_PRICE_CENTS
+    total_cost = tokens_cost + premium_tokens_cost + images_cost
     return total_cost
 
 
@@ -205,9 +207,10 @@ else:
 # Calculate the price per token in cents
 PRICE_CENTS = PRICE_1K / 10
 PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
+IMAGE_PRICE_CENTS = IMAGE_PRICE * 100
 
 # Session token and request counters
-request_number, session_tokens, premium_session_tokens = 0, 0, 0
+request_number, session_tokens, premium_session_tokens, session_images = 0, 0, 0, 0
 
 
 """====================ADMIN_COMMANDS===================="""
@@ -250,16 +253,17 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, not_found_string, parse_mode="MARKDOWN")
         return
 
-    if "images" in data[target_user_id]:
-        images_line = f"images: {data[target_user_id]['images']}\n"
-    else:
-        images_line = ""
-
     if data[target_user_id].get("premium_balance") is not None:
         premium_string = (f"premium tokens: {data[target_user_id].get('premium_tokens', 0)}\n"
                           f"premium balance: {data[target_user_id]['premium_balance']}\n\n")
     else:
         premium_string = ""
+
+    if "image_balance" in data[target_user_id]:
+        images_string = (f"images: {data[target_user_id].get('images', 0)}\n"
+                         f"image balance: {data[target_user_id]['image_balance']}\n\n")
+    else:
+        images_string = ""
 
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
@@ -267,13 +271,13 @@ def handle_data_command(message):
                        f"{data[target_user_id]['username']}\n\n" \
                        f"requests: {data[target_user_id]['requests']}\n" \
                        f"tokens: {data[target_user_id]['tokens']}\n" \
-                       f"{images_line}" \
                        f"balance: {data[target_user_id]['balance']}\n\n" \
                        f"{premium_string}" \
+                       f"{images_string}" \
                        f"last request: {data[target_user_id]['lastdate']}\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
-    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0))
+    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0), data[target_user_id].get('images', 0))
     user_data_string += f"user cost: ¢{round(user_cost_cents, 3)}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
@@ -340,8 +344,9 @@ def handle_recent_users_command(message):
 # Define the handler for the admin /refill command
 @bot.message_handler(commands=["r", "refill"])
 def handle_refill_command(message):
-    wrong_input_string = ("Укажите @username/id пользователя и сумму пополнения после команды.\n"
-                          "Допишите `premium` последним аргументом, чтобы пополнить баланс премиум токенов.\n\n"
+    wrong_input_string = ("Укажите @username/id пользователя и сумму пополнения после команды.\n\n"
+                          "Допишите `premium` последним аргументом, чтобы пополнить баланс премиум токенов. "
+                          "Или `image`, чтобы пополнить баланс для генерации изображений.\n\n"
                           "Пример: `/refill @username 1000`")
 
     # Проверки на доступность команды
@@ -367,7 +372,7 @@ def handle_refill_command(message):
     not_found_string = f"Пользователь {target_user} не найден"
     success_string = f"Баланс пользователя {target_user} успешно пополнен на {amount} токенов."
 
-    # Определяем тип баланса для пополнения в зависимости от третьего аргумента (обычный или премиум)
+    # Определяем тип баланса для пополнения в зависимости от третьего аргумента (обычный, премиум или генерации изображений)
     balance_type = args[2] if len(args) > 2 else None
     if balance_type is None:
         balance_type = "balance"
@@ -376,6 +381,10 @@ def handle_refill_command(message):
         balance_type = "premium_balance"
         success_string = "ПРЕМИУМ " + success_string
         prefix = "премиум "
+    elif balance_type in ["images", "image", "img", "i"]:
+        balance_type = "image_balance"
+        success_string = "IMAGE " + success_string
+        prefix = "image "
     else:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
         return
@@ -664,6 +673,7 @@ def handle_help_command(message):
     help_string = "Список доступных команд:\n\n" \
                   "/start - регистрация в системе\n/help - список команд (вы здесь)\n" \
                   "/invite или /ref - пригласить друга и получить бонус 🎁\n\n" \
+                  "/imagine или /img - генерация изображений 🎨" \
                   "/balance - баланс токенов\n/stats - статистика запросов\n" \
                   "/ask_favor - запросить эирдроп токенов 🙏\n\n" \
                   "/switch_model или /sw - сменить языковую модель\n\n" \
@@ -706,10 +716,13 @@ def handle_balance_command(message):
     # Если юзер есть в базе, то выдаем его баланс
     balance = data[user_id]["balance"]
     prem_balance = data[user_id].get("premium_balance", 0)  # Если поля "premium_balance" нет в БД, то выводим 0
+    image_balance = data[user_id].get("image_balance", 0)
 
     balance_string = (f"Токены: {balance}\n"
-                      f"Премиум токены: {prem_balance}\n\n"
-                      f"Используйте команду /switch_model, чтобы переключить используемую языковую модель\n")
+                      f"Премиум токены: {prem_balance}\n"
+                      f"Генерации изображений: {image_balance}\n\n"
+                      f"Используйте команду /switch_model, чтобы переключать используемую языковую модель для запросов. "
+                      f"Для генерации изображений используйте команду /imagine\n")
 
     bot.reply_to(message, balance_string)
 
@@ -954,36 +967,36 @@ def handle_favor_callback(call):
         bot.answer_callback_query(call.id, "Что-то пошло не так...\n\ncallback_data: " + call.data, True)
 
 
-# TODO: внедрить фичу для всех пользователей вместе с премиум запросами, пока только пре-релиз для админа
 # Define the handler for the /imagine command to generate AI image from text via OpenAi
 @bot.message_handler(commands=["i", "img", "image", "imagine"])
 def handle_imagine_command(message):
+    global session_images, data
     user = message.from_user
 
     if is_user_blacklisted(user.id):
         return
 
-    # if not is_user_exists(user.id):
-    #     bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
-    #     return
+    if not is_user_exists(user.id):
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        return
 
-    # Пока что команда доступна только админу
-    if user.id != ADMIN_ID:
-        bot.reply_to(message, "платно")
+    # Check for user IMAGE balance
+    if data[user.id].get("image_balance") is None or data[user.id]["image_balance"] <= 0:
+        bot.reply_to(message, 'У вас закончились токены для генерации изображений, пополните баланс!')
         return
 
     image_prompt = extract_arguments(message.text)
-
     if image_prompt == "":
-        bot.reply_to(message, "Введите текст для генерации изображения вместе с командой /imagine")
+        bot.reply_to(message, "Введите текст для генерации изображения моделью *DALL-E 3* после команды /imagine или /img\n\n"
+                              "Пример: `/img НЛО похищает Эйфелеву башню`", parse_mode="Markdown")
         return
 
-    # bot.reply_to(message, f"{image_prompt}\n\nГенерирую изображение, подождите немного...")
+    wait_message = bot.reply_to(message, f"Генерирую изображение, подождите немного...")
 
-    log_message = f"\nUser {user.full_name} @{user.username} requested image generation with prompt: {image_prompt}"
+    log_message = f"\nUser {user.id} {user.full_name} has requested image generation"
     print(log_message)
-    if user.id != ADMIN_ID:
-        bot.send_message(ADMIN_ID, log_message)
+    # if user.id != ADMIN_ID:
+    #     bot.send_message(ADMIN_ID, log_message)
 
     # Симулируем эффект отправки изображения, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "upload_photo")
@@ -1004,23 +1017,33 @@ def handle_imagine_command(message):
             bot.send_message(message.chat.id, error_text + str(e))
         bot.send_message(ADMIN_ID, error_text + str(e.error))
         print(e.error)
+        bot.delete_message(wait_message.chat.id, wait_message.message_id)
         return
 
-    # image_url = response['data'][0]['url']
-    image_url = response.data[0].url
+    image_url = response.data[0].url  # или response['data'][0]['url']
     # revised_prompt = '<span class="tg-spoiler">' + response.data[0].revised_prompt + '</span>'
-    revised_prompt = ""
 
     try:
-        bot.send_photo(message.chat.id, image_url, caption=revised_prompt, parse_mode="HTML")
+        bot.send_photo(message.chat.id, image_url)
     except telebot.apihelper.ApiTelegramException as e:
-        error_text = "Произошла ошибка при отправке изображения 😵\n\n"
+        error_text = "Произошла ошибка при отправке сгенерированного изображения 😵\n\n"
 
         if message.chat.id != ADMIN_ID:
             bot.send_message(message.chat.id, error_text)
-        bot.send_message(ADMIN_ID, error_text + str(e))
+        bot.send_message(ADMIN_ID, error_text + str(e) + f"\n\n{user.id}\n{image_url}")
         print(error_text + str(e))
         return
+
+    # Удалияем сообщение о генерации изображения
+    try:
+        bot.delete_message(wait_message.chat.id, wait_message.message_id)
+    except telebot.apihelper.ApiTelegramException as e:
+        pass
+
+    session_images += 1
+
+    data[user.id]["image_balance"] -= 1
+    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
 
     if "images" in data[user.id]:
         data[user.id]["images"] += 1
@@ -1034,6 +1057,10 @@ def handle_imagine_command(message):
         data["global"]["images"] = 1
 
     update_json_file(data)
+
+    # Кидаем картинку с промптом админу в личку, чтобы он тоже окультуривался
+    if user.id != ADMIN_ID:
+        bot.send_photo(ADMIN_ID, image_url, caption=f"{image_prompt}\n\n")
 
 
 # Define the message handler for incoming messages
@@ -1172,11 +1199,11 @@ def handle_message(message):
 
     # Формируем лог работы для админа
     admin_log += (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
-                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens), 3)}\n"
+                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
                   f"Юзер: {user.full_name} @{user.username} {user.id}\n"
                   f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
                   f"{chat_line}"
-                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0)), 3)}\n")
+                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
