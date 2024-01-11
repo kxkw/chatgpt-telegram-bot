@@ -1195,11 +1195,11 @@ def handle_message(message):
 
     # Формируем лог работы для админа
     admin_log += (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
-                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens), 3)}\n"
+                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
                   f"Юзер: {user.full_name} @{user.username} {user.id}\n"
                   f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
                   f"{chat_line}"
-                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0)), 3)}\n")
+                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
 
     # Пишем лог работы в консоль
     print("\n" + admin_log)
