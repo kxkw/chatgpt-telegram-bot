@@ -207,7 +207,7 @@ PRICE_CENTS = PRICE_1K / 10
 PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
 
 # Session token and request counters
-request_number, session_tokens, premium_session_tokens = 0, 0, 0
+request_number, session_tokens, premium_session_tokens, session_images = 0, 0, 0, 0
 
 
 """====================ADMIN_COMMANDS===================="""
@@ -954,36 +954,36 @@ def handle_favor_callback(call):
         bot.answer_callback_query(call.id, "Что-то пошло не так...\n\ncallback_data: " + call.data, True)
 
 
-# TODO: внедрить фичу для всех пользователей вместе с премиум запросами, пока только пре-релиз для админа
 # Define the handler for the /imagine command to generate AI image from text via OpenAi
 @bot.message_handler(commands=["i", "img", "image", "imagine"])
 def handle_imagine_command(message):
+    global session_images, data
     user = message.from_user
 
     if is_user_blacklisted(user.id):
         return
 
-    # if not is_user_exists(user.id):
-    #     bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
-    #     return
+    if not is_user_exists(user.id):
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        return
 
-    # Пока что команда доступна только админу
-    if user.id != ADMIN_ID:
-        bot.reply_to(message, "платно")
+    # Check for user IMAGE balance
+    if data[user.id].get("image_balance") is None or data[user.id]["image_balance"] <= 0:
+        bot.reply_to(message, 'У вас закончились токены для генерации изображений, пополните баланс!')
         return
 
     image_prompt = extract_arguments(message.text)
-
     if image_prompt == "":
-        bot.reply_to(message, "Введите текст для генерации изображения вместе с командой /imagine")
+        bot.reply_to(message, "Введите текст для генерации изображения вместе с командой /imagine или /img\n\n"
+                              "Пример: `/img НЛО похищает Эйфелеву башню`", parse_mode="Markdown")
         return
 
-    # bot.reply_to(message, f"{image_prompt}\n\nГенерирую изображение, подождите немного...")
+    wait_message = bot.reply_to(message, f"Генерирую изображение, подождите немного...")
 
-    log_message = f"\nUser {user.full_name} @{user.username} requested image generation with prompt: {image_prompt}"
+    log_message = f"\nUser {user.id} {user.full_name} has requested image generation"
     print(log_message)
-    if user.id != ADMIN_ID:
-        bot.send_message(ADMIN_ID, log_message)
+    # if user.id != ADMIN_ID:
+    #     bot.send_message(ADMIN_ID, log_message)
 
     # Симулируем эффект отправки изображения, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "upload_photo")
@@ -1004,23 +1004,33 @@ def handle_imagine_command(message):
             bot.send_message(message.chat.id, error_text + str(e))
         bot.send_message(ADMIN_ID, error_text + str(e.error))
         print(e.error)
+        bot.delete_message(wait_message.chat.id, wait_message.message_id)
         return
 
-    # image_url = response['data'][0]['url']
-    image_url = response.data[0].url
+    image_url = response.data[0].url  # или response['data'][0]['url']
     # revised_prompt = '<span class="tg-spoiler">' + response.data[0].revised_prompt + '</span>'
-    revised_prompt = ""
 
     try:
-        bot.send_photo(message.chat.id, image_url, caption=revised_prompt, parse_mode="HTML")
+        bot.send_photo(message.chat.id, image_url)
     except telebot.apihelper.ApiTelegramException as e:
-        error_text = "Произошла ошибка при отправке изображения 😵\n\n"
+        error_text = "Произошла ошибка при отправке сгенерированного изображения 😵\n\n"
 
         if message.chat.id != ADMIN_ID:
             bot.send_message(message.chat.id, error_text)
-        bot.send_message(ADMIN_ID, error_text + str(e))
+        bot.send_message(ADMIN_ID, error_text + str(e) + f"\n\n{user.id}\n{image_url}")
         print(error_text + str(e))
         return
+
+    # Удалияем сообщение о генерации изображения
+    try:
+        bot.delete_message(wait_message.chat.id, wait_message.message_id)
+    except telebot.apihelper.ApiTelegramException as e:
+        pass
+
+    session_images += 1
+
+    data[user.id]["image_balance"] -= 1
+    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
 
     if "images" in data[user.id]:
         data[user.id]["images"] += 1
@@ -1034,6 +1044,10 @@ def handle_imagine_command(message):
         data["global"]["images"] = 1
 
     update_json_file(data)
+
+    # Кидаем картинку с промптом админу в личку, чтобы он тоже окультуривался
+    if user.id != ADMIN_ID:
+        bot.send_photo(ADMIN_ID, image_url, caption=f"{image_prompt}\n\n")
 
 
 # Define the message handler for incoming messages
