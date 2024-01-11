@@ -987,7 +987,7 @@ def handle_imagine_command(message):
 
     image_prompt = extract_arguments(message.text)
     if image_prompt == "":
-        bot.reply_to(message, "Введите текст для генерации изображения вместе с командой /imagine или /img\n\n"
+        bot.reply_to(message, "Введите текст для генерации изображения моделью *DALL-E 3* после команды /imagine или /img\n\n"
                               "Пример: `/img НЛО похищает Эйфелеву башню`", parse_mode="Markdown")
         return
 
