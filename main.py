@@ -490,6 +490,7 @@ def handle_announce_command(message):
                               "Варианты:\n"
                               "all - рассылка всем пользователям\n"
                               "req1 - расылка всем пользователям, кто сделал хотя бы 1 запрос (любое значение)\n"
+                              "bal1000 - рассылка всем пользователям с балансом от 1000 токенов (любое значение)\n"
                               "test - рассылка только админу (тест команды)\n\n"
                               "Так же можно уведомить только одного пользователя, написав его user_id или @username")
         return
@@ -532,6 +533,19 @@ def process_announcement_message_step(message, user_filter):
             if data[user_id]["requests"] >= user_filter:
                 recepients_list.append(user_id)
         confirmation_text = f"Получатели: юзеры от {user_filter} запросов ({len(recepients_list)})\n\n" \
+                            "Разослать данное сообщение? (y/n)\n"
+
+    elif user_filter.startswith("bal"):
+        user_filter = user_filter[3:]
+        if not user_filter.isdigit():
+            bot.send_message(user.id, "Неверный тип рассылки!\nЖми /announce для справки")
+            return
+
+        user_filter = int(user_filter)
+        for user_id in list(data.keys())[1:]:
+            if data[user_id]["balance"] >= user_filter:
+                recepients_list.append(user_id)
+        confirmation_text = f"Получатели: юзеры с балансом от {user_filter} токенов ({len(recepients_list)})\n\n" \
                             "Разослать данное сообщение? (y/n)\n"
 
     # Для групповых чатов (id с минусом)
