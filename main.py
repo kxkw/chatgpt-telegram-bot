@@ -15,7 +15,7 @@ from telebot import types
 
 MODEL = "gpt-3.5-turbo-1106"  # 16k
 PREMIUM_MODEL = "gpt-4-1106-preview"  # 128k tokens context window
-MAX_REQUEST_TOKENS = 3000  # max output tokens for one request (not including input tokens)
+MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 PRICE_1K = 0.002  # price per 1k tokens in USD
@@ -25,8 +25,8 @@ IMAGE_PRICE = 0.08  # price per generated image in USD
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
 
-NEW_USER_BALANCE = 20000  # balance for new users
-REFERRAL_BONUS = 10000  # bonus for inviting a new user
+NEW_USER_BALANCE = 30000  # balance for new users
+REFERRAL_BONUS = 20000  # bonus for inviting a new user
 FAVOR_AMOUNT = 20000  # amount of tokens per granted favor
 FAVOR_MIN_LIMIT = 5000  # minimum balance to ask for a favor
 
