@@ -1078,6 +1078,123 @@ def handle_imagine_command(message):
         bot.send_photo(ADMIN_ID, image_url, caption=f"{image_prompt}\n\n")
 
 
+# Define the handler for the /pro command to make premium requests
+# Большая часть кода скопипащена из обработчика обычных запросов (повторение кода) и это кринж. Исправить.
+@bot.message_handler(commands=["pro", "prem", "premium", "gpt4"])
+def handle_pro_command(message):
+    global session_tokens, premium_session_tokens, request_number, data
+    user = message.from_user
+
+    if is_user_blacklisted(user.id):
+        return
+
+    if not is_user_exists(user.id):
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        return
+
+    user_request = extract_arguments(message.text)
+    if user_request == "":
+        bot.reply_to(message, "Введите текст после команды /pro или /prem для обращения к *GPT-4* без смены активной языковой модели\n\n"
+                              "Пример: `/pro напиши код калькулятора на python с использованием библиотеки telebot`", parse_mode="Markdown")
+        return
+
+    if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
+        bot.reply_to(message, 'У вас закончились премиальные токены, пополните баланс!')
+        return
+
+    # Симулируем эффект набора текста, пока бот получает ответ
+    bot.send_chat_action(message.chat.id, "typing")
+
+    # # Send the user's message to OpenAI API and get the response
+    try:
+        if message.reply_to_message is not None:
+            response = call_chatgpt(user_request, lang_model=PREMIUM_MODEL, prev_answer=message.reply_to_message.text, system_prompt=get_user_prompt(user.id))
+        else:
+            response = call_chatgpt(user_request, lang_model=PREMIUM_MODEL, system_prompt=get_user_prompt(user.id))
+    except openai.error.RateLimitError:
+        print("\nЛимит запросов! Или закончились деньги на счету OpenAI")
+        bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
+        return
+    except Exception as e:
+        print("\nОшибка при запросе по API, OpenAI сбоит!")
+        bot.reply_to(message, "Произошла ошибка на серверах OpenAI.\n"
+                              "Пожалуйста, попробуйте еще раз или повторите запрос позже")
+        print(e)
+        return
+
+    # Получаем стоимость запроса по АПИ в токенах
+    request_tokens = response["usage"]["total_tokens"]
+    premium_session_tokens += request_tokens
+    request_number += 1
+
+    # Обновляем глобальную статистику по количеству запросов и использованных токенов (режим обратной совместимости с версией без премиум токенов)
+    data["global"]["requests"] += 1
+    if "premium_tokens" in data["global"]:
+        data["global"]["premium_tokens"] += request_tokens
+    else:
+        data["global"]["premium_tokens"] = request_tokens
+
+    # Если юзер не админ, то списываем токены с баланса
+    if user.id != ADMIN_ID:
+        data[user.id]["premium_balance"] -= request_tokens
+
+    data[user.id]["requests"] += 1
+    if "premium_tokens" in data[user.id]:
+        data[user.id]["premium_tokens"] += request_tokens
+    else:
+        data[user.id]["premium_tokens"] = request_tokens
+
+    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
+
+    update_json_file(data)
+
+    request_price = request_tokens * PREMIUM_PRICE_CENTS
+
+    # To prevent sending too long messages, we split the response into chunks of 4096 characters
+    split_message = telebot.util.smart_split(response.choices[0].message.content, 4096)
+
+    error_text = f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: "
+
+    # Send the response back to the user, but check for `parse_mode` and `message is too long` errors
+    if message.chat.type == "private":
+        try:
+            for string in split_message:
+                bot.send_message(message.chat.id, string, parse_mode="Markdown")
+        except telebot.apihelper.ApiTelegramException as e:
+            print(error_text + str(e))
+            for string in split_message:
+                bot.send_message(message.chat.id, string)
+    else:  # В групповом чате отвечать на конкретное сообщение, а не просто отправлять сообщение в чат
+        try:
+            for string in split_message:
+                bot.reply_to(message, string, parse_mode="Markdown", allow_sending_without_reply=True)
+        except telebot.apihelper.ApiTelegramException as e:
+            print(error_text + str(e))
+            for string in split_message:
+                bot.reply_to(message, string, allow_sending_without_reply=True)
+
+    # Если сообщение было в групповом чате, то указать данные о нём
+    if message.chat.id < 0:
+        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
+    else:
+        chat_line = ""
+
+    # Формируем лог работы для админа
+    admin_log = (f"ПРЕМ Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
+                 f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
+                 f"Юзер: {user.full_name} @{user.username} {user.id}\n"
+                 f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
+                 f"{chat_line}"
+                 f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
+
+    # Пишем лог работы в консоль
+    print("\n" + admin_log)
+
+    # Отправляем лог работы админу
+    if message.chat.id != ADMIN_ID:
+        bot.send_message(ADMIN_ID, admin_log)
+
+
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
