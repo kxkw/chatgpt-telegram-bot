@@ -1356,11 +1356,11 @@ def handle_pinned_message(message):
     bot.delete_message(message.chat.id, message.message_id)
 
 
-# Start the bot
-print("---работаем---")
-bot.infinity_polling()
+if __name__ == '__main__':
+    print("---работаем---")
+    bot.infinity_polling()
 
-# Делаем бэкап бд и уведомляем админа об успешном завершении работы
-update_json_file(data, BACKUPFILE)
-bot.send_message(ADMIN_ID, "Бот остановлен")
-print("\n---работа завершена---")
+    # Делаем бэкап бд и уведомляем админа об успешном завершении работы
+    update_json_file(data, BACKUPFILE)
+    bot.send_message(ADMIN_ID, "Бот остановлен")
+    print("\n---работа завершена---")
