@@ -109,7 +109,7 @@ def get_user_prompt(user_id: int) -> str:
 
 
 # Function to call the OpenAI API and get the response
-def call_chatgpt(user_request: str, lang_model=MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
+def get_chatgpt_response(user_request: str, lang_model=MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
     messages = [{"role": "system", "content": system_prompt}]
 
     if prev_answer is not None:
@@ -687,7 +687,7 @@ def handle_help_command(message):
     help_string = "Список доступных команд:\n\n" \
                   "/start - регистрация в системе\n/help - список команд (вы здесь)\n" \
                   "/invite или /ref - пригласить друга и получить бонус 🎁\n\n" \
-                  "/imagine или /img - генерация изображений 🎨" \
+                  "/imagine или /img - генерация изображений 🎨\n" \
                   "/balance - баланс токенов\n/stats - статистика запросов\n" \
                   "/ask_favor - запросить эирдроп токенов 🙏\n\n" \
                   "/switch_model или /sw - переключить языковую модель\n" \
@@ -1109,9 +1109,10 @@ def handle_pro_command(message):
     # # Send the user's message to OpenAI API and get the response
     try:
         if message.reply_to_message is not None:
-            response = call_chatgpt(user_request, lang_model=PREMIUM_MODEL, prev_answer=message.reply_to_message.text, system_prompt=get_user_prompt(user.id))
+            response = get_chatgpt_response(user_request, lang_model=PREMIUM_MODEL, prev_answer=message.reply_to_message.text,
+                                            system_prompt=get_user_prompt(user.id))
         else:
-            response = call_chatgpt(user_request, lang_model=PREMIUM_MODEL, system_prompt=get_user_prompt(user.id))
+            response = get_chatgpt_response(user_request, lang_model=PREMIUM_MODEL, system_prompt=get_user_prompt(user.id))
     except openai.error.RateLimitError:
         print("\nЛимит запросов! Или закончились деньги на счету OpenAI")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
@@ -1206,7 +1207,7 @@ def handle_message(message):
         return
 
     # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
-    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id:
+    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id and not message.text.startswith('//'):
         print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
         return
 
@@ -1250,9 +1251,10 @@ def handle_message(message):
     # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
         if message.reply_to_message is not None and message.reply_to_message.from_user.id == bot.get_me().id:
-            response = call_chatgpt(message.text, lang_model=user_model, prev_answer=message.reply_to_message.text, system_prompt=get_user_prompt(user.id))
+            response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=message.reply_to_message.text,
+                                            system_prompt=get_user_prompt(user.id))
         else:
-            response = call_chatgpt(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id))
+            response = get_chatgpt_response(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id))
     except openai.error.RateLimitError:
         print("\nЛимит запросов! Или закончились деньги на счету OpenAI")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
@@ -1356,11 +1358,11 @@ def handle_pinned_message(message):
     bot.delete_message(message.chat.id, message.message_id)
 
 
-# Start the bot
-print("---работаем---")
-bot.infinity_polling()
+if __name__ == '__main__':
+    print("---работаем---")
+    bot.infinity_polling()
 
-# Делаем бэкап бд и уведомляем админа об успешном завершении работы
-update_json_file(data, BACKUPFILE)
-bot.send_message(ADMIN_ID, "Бот остановлен")
-print("\n---работа завершена---")
+    # Делаем бэкап бд и уведомляем админа об успешном завершении работы
+    update_json_file(data, BACKUPFILE)
+    bot.send_message(ADMIN_ID, "Бот остановлен")
+    print("\n---работа завершена---")
