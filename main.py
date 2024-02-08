@@ -1207,7 +1207,7 @@ def handle_message(message):
         return
 
     # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
-    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id:
+    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id and not message.text.startswith('//'):
         print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
         return
 
