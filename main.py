@@ -1250,7 +1250,7 @@ def handle_message(message):
     # Send the user's message to OpenAI API and get the response
     # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
-        if message.reply_to_message is not None and message.reply_to_message.from_user.id == bot.get_me().id:
+        if message.reply_to_message is not None:
             response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=message.reply_to_message.text,
                                             system_prompt=get_user_prompt(user.id))
         else:
