@@ -10,6 +10,8 @@ import time
 
 from telebot.util import extract_arguments
 from telebot import types
+import base64
+import requests
 
 
 
@@ -182,6 +184,12 @@ def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> flo
     images_cost = images * IMAGE_PRICE_CENTS
     total_cost = tokens_cost + premium_tokens_cost + images_cost
     return total_cost
+
+
+# Function to encode the image
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
 
 """========================SETUP========================="""
@@ -1195,6 +1203,96 @@ def handle_pro_command(message):
     # Отправляем лог работы админу
     if message.chat.id != ADMIN_ID:
         bot.send_message(ADMIN_ID, admin_log)
+
+
+# Define the handler for the /vision command to use `gpt-4-vision-preview` model for incoming images
+# @bot.message_handler(func=lambda message: any(command in (message.text or '') or command in (message.caption or '') for command in ["vision", "v", "see"]), content_types=["photo", "text"])
+@bot.message_handler(func=lambda message: message.caption is not None, content_types=["photo"])
+def handle_vision_command(message: types.Message):
+    user = message.from_user
+    image_path = "image_for_vision_" + str(user.id) + ".jpg"
+
+    # Мб вынести все проверки в лямбда функцию хэндлера команды?
+    if is_user_blacklisted(user.id):
+        return
+
+    if not is_user_exists(user.id):
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        return
+
+    if user.id != ADMIN_ID:
+        bot.reply_to(message, "Функция распознавания изображений временно доступна только админу.")
+        return
+
+    # TODO: или получать аргументы из message.text, если кэпшона к фотке нет (а значит и самой фотки нет, мб она в отвечаемом сообщении)
+    user_request = message.caption
+
+    # if user_request == "":
+    #     bot.reply_to(message, "Введите текст после команды /vision или /v для обращения к *GPT-4 Vision*\n\n"
+    #                           "Пример: `/v что изображено на картинке?`", parse_mode="Markdown")
+    #     return
+
+    # Get the photo
+    photo = message.photo[-1]  # get the highest resolution photo
+
+    # Get the file ID
+    file_id = photo.file_id
+
+    # Now you can use the file_id to download the photo
+    # For example:
+    file_info = bot.get_file(file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+
+    # Now `downloaded_file` contains the photo file
+    # You can save it locally if you want
+    with open(image_path, 'wb') as new_file:
+        new_file.write(downloaded_file)
+        # print("Картинка получена!")
+
+    # Симулируем эффект набора текста, пока бот получает ответ
+    bot.send_chat_action(message.chat.id, "typing")
+
+    # Getting the base64 string
+    base64_image = encode_image(image_path)
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai.api_key}"
+    }
+
+    payload = {
+        "model": "gpt-4-vision-preview",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": user_request
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 1000
+    }
+
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    # print(response.status_code)  # 200
+    # print(response.json())
+
+    # Send the response back to the user
+    bot.reply_to(message, response.json()["choices"][0]["message"]["content"])
+
+    # TODO: добавить списание токенов с баланса для пользователей
+
+    # delete image file
+    os.remove(image_path)
 
 
 # Define the message handler for incoming messages
