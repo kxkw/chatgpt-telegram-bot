@@ -1,7 +1,7 @@
 # chatgpt-telegram-bot
 >*Personal helper working on base model OpenAI GPT-3.5-turbo and GPT-4, which are available in Telegram app. It is processing messages from users, sending them on OpenAI server and sending back the answers. 
 Bot supports systems of balance tokens for every users, which used for API-request. Also, there is available referrals systems and every user can get a bonus tokens.
->For last but not least it`s opportunity to set custom user`s systems prompt for special answers style. 
+>For last but not least its opportunity to set custom users systems prompt for special answers style. 
 **Сгенерировано самим ботом**
 
 Бот отправляет сообщения пользователей по OpenAI API в ChatGPT и возвращает обратно текст ответа. Логи обо всех запросах пользователей приходят админу в личку.
