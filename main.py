@@ -1142,12 +1142,14 @@ def handle_vision_command(message: types.Message):
                                   "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
 
-    if user.id != ADMIN_ID:
-        bot.reply_to(message, "Функция распознавания изображений временно доступна только админу.")
-        return
-
     # TODO: или получать аргументы из message.text, если кэпшона к фотке нет (а значит и самой фотки нет, мб она в отвечаемом сообщении)
     user_request = message.caption
+
+    if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
+        bot.reply_to(message, 'У вас закончились премиальные токены, пополните баланс!', parse_mode="HTML")
+        return
+    current_price_cents = PREMIUM_PRICE_CENTS
+    admin_log = "ВИЖН "
 
     # if user_request == "":
     #     bot.reply_to(message, "Введите текст после команды /vision или /v для обращения к *GPT-4 Vision*\n\n"
@@ -1160,13 +1162,11 @@ def handle_vision_command(message: types.Message):
     # Get the file ID
     file_id = photo.file_id
 
-    # Now you can use the file_id to download the photo
-    # For example:
+    # Download the photo
     file_info = bot.get_file(file_id)
     downloaded_file = bot.download_file(file_info.file_path)
 
     # Now `downloaded_file` contains the photo file
-    # You can save it locally if you want
     with open(image_path, 'wb') as new_file:
         new_file.write(downloaded_file)
         # print("Картинка получена!")
@@ -1201,20 +1201,55 @@ def handle_vision_command(message: types.Message):
                 ]
             }
         ],
-        "max_tokens": 1000
+        "max_tokens": 700
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response = response.json()
     # print(response.status_code)  # 200
     # print(response.json())
 
-    # Send the response back to the user
-    bot.reply_to(message, response.json()["choices"][0]["message"]["content"])
-
-    # TODO: добавить списание токенов с баланса для пользователей
+    request_tokens = response["usage"]["total_tokens"]
+    # print(f"Запрос на {request_tokens} токенов")
 
     # delete image file
     os.remove(image_path)
+
+    update_global_user_data(
+        user.id,
+        new_premium_tokens=request_tokens,
+        deduct_tokens=True if user.id != ADMIN_ID else False
+    )
+
+    # Считаем стоимость запроса в центах
+    request_price_cents = request_tokens * current_price_cents
+
+    try:  # Send the response back to the user
+        bot.reply_to(message, response["choices"][0]["message"]["content"], parse_mode="Markdown", allow_sending_without_reply=True)
+    except telebot.apihelper.ApiTelegramException as e:
+        print(f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: " + str(e))
+        bot.reply_to(message, response["choices"][0]["message"]["content"], allow_sending_without_reply=True)
+
+    # Если сообщение было в групповом чате, то указать данные о нём
+    if message.chat.id < 0:
+        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
+    else:
+        chat_line = ""
+
+    # Формируем лог работы для админа
+    admin_log += (f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price_cents, 3)}\n"
+                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
+                  f"Юзер: {user.full_name} @{user.username} {user.id}\n"
+                  f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
+                  f"{chat_line}"
+                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
+
+    # Пишем лог работы в консоль
+    print("\n" + admin_log)
+
+    # Отправляем лог работы админу в тг
+    if message.chat.id != ADMIN_ID:
+        bot.send_message(ADMIN_ID, admin_log)
 
 
 # Define the message handler for incoming messages
