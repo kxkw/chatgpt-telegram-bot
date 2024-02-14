@@ -1306,17 +1306,18 @@ def handle_message(message):
 
     # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
     if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id and not message.text.startswith('//'):
-        print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
+        # print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
         return
 
     user_model: str = get_user_active_model(user.id)
-    # print("Модель юзера: " + user_model)
+
     # Проверяем, есть ли у пользователя токены на балансе в зависимости от выбранной языковой модели
     if user_model == MODEL:
         if data[user.id]["balance"] <= 0:
             bot.reply_to(message, 'У вас закончились токены, пополните баланс!\n'
                                   '<span class="tg-spoiler">/help в помощь</span>', parse_mode="HTML")
             return
+
         balance_type = "balance"
         tokens_type = "tokens"
         current_price_cents = PRICE_CENTS
@@ -1326,6 +1327,7 @@ def handle_message(message):
         if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
             bot.reply_to(message, 'У вас закончились премиальные токены, пополните баланс!', parse_mode="HTML")
             return
+
         balance_type = "premium_balance"
         tokens_type = "premium_tokens"
         current_price_cents = PREMIUM_PRICE_CENTS
