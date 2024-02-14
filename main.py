@@ -166,7 +166,7 @@ def get_recent_active_users(days: int) -> list:
 
 
 # Function to get user current model
-def get_user_model(user_id: int) -> str:
+def get_user_active_model(user_id: int) -> str:
     if data[user_id].get("lang_model") is None:
         return MODEL
     else:
@@ -864,7 +864,7 @@ def handle_switch_model_command(message):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
         return
 
-    user_model = get_user_model(user_id)
+    user_model = get_user_active_model(user_id)
 
     # Определяем целевую языковую модель в зависимости от текущей
     if user_model == MODEL:
@@ -1309,13 +1309,7 @@ def handle_message(message):
         print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
         return
 
-    # Если пользователя нет в базе, то перенаправляем его на команду /start и выходим
-    if not is_user_exists(user.id):
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
-                              "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
-        return
-
-    user_model: str = get_user_model(user.id)
+    user_model: str = get_user_active_model(user.id)
     # print("Модель юзера: " + user_model)
     # Проверяем, есть ли у пользователя токены на балансе в зависимости от выбранной языковой модели
     if user_model == MODEL:
