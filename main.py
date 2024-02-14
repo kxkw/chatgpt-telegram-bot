@@ -1407,37 +1407,13 @@ def handle_message(message):
 
     # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
-    session_request_counter += 1
 
-    if user_model == PREMIUM_MODEL:
-        premium_session_tokens += request_tokens
-    else:
-        session_tokens += request_tokens
-
-    # Обновляем глобальную статистику по количеству запросов и использованных токенов (режим обратной совместимости с версией без премиум токенов)
-    data["global"]["requests"] += 1
-    if tokens_type in data["global"]:
-        data["global"][tokens_type] += request_tokens
-    else:
-        data["global"][tokens_type] = request_tokens
-
-    # Если юзер не админ, то списываем токены с баланса
-    if user.id != ADMIN_ID:
-        data[user.id][balance_type] -= request_tokens
-
-    data[user.id]["requests"] += 1
-
-    # Обновляем данные юзера по количеству использованных токенов (режим обратной совместимости с версией без премиум токенов)
-    if tokens_type in data[user.id]:
-        data[user.id][tokens_type] += request_tokens
-    else:
-        data[user.id][tokens_type] = request_tokens
-
-    # получаем текущее время и прибавляем +3 часа
-    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
-
-    # Записываем инфу о количестве запросов и токенах в файл
-    update_json_file(data)
+    update_global_user_data(
+        user.id,
+        new_tokens=request_tokens if user_model == DEFAULT_MODEL else None,
+        new_premium_tokens=request_tokens if user_model == PREMIUM_MODEL else None,
+        deduct_tokens=True if user.id != ADMIN_ID else False
+    )
 
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
     request_price = request_tokens * current_price_cents
