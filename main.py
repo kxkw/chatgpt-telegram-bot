@@ -1276,7 +1276,8 @@ def handle_message(message):
     # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
         if message.reply_to_message is not None:
-            response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=message.reply_to_message.text,
+            prev_answer = message.reply_to_message.caption or message.reply_to_message.text
+            response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=prev_answer,
                                             system_prompt=get_user_prompt(user.id))
         else:
             response = get_chatgpt_response(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id))
