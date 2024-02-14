@@ -186,7 +186,7 @@ def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> flo
 
 
 # Function to encode the image
-def encode_image(image_path):
+def encode_image_b64(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
@@ -1174,7 +1174,7 @@ def handle_vision_command(message: types.Message):
     bot.send_chat_action(message.chat.id, "typing")
 
     # Getting the base64 string
-    base64_image = encode_image(image_path)
+    base64_image = encode_image_b64(image_path)
 
     headers = {
         "Content-Type": "application/json",
