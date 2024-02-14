@@ -191,6 +191,46 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 
+# Получает на вход новые данные по пользователю по произведенным запросам, потраченным токенам, премиум токенам и изображениям и добавляет их в базу
+# Если deduct_tokens = False, то токены не будут списаны с баланса (например, при запросах администратора)
+# Вызывать, только если у пользователя положительный баланс используемых токенов!
+def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int = None, new_premium_tokens: int = None, new_images: int = None, deduct_tokens: bool = True) -> None:
+
+    global data, session_request_counter, session_tokens, premium_session_tokens, session_images  # Глобальные счетчики текущей сессии
+
+    data[user_id]["requests"] += new_requests
+    data["global"]["requests"] += new_requests
+    session_request_counter += new_requests
+
+    data[user_id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
+
+    if new_tokens:
+        data[user_id]["tokens"] += new_tokens
+        data["global"]["tokens"] += new_tokens
+        session_tokens += new_tokens
+
+        if deduct_tokens:
+            data[user_id]["balance"] -= new_tokens
+
+    if new_premium_tokens:
+        data[user_id]["premium_tokens"] = data[user_id].get("premium_tokens", 0) + new_premium_tokens
+        data["global"]["premium_tokens"] = data["global"].get("premium_tokens", 0) + new_premium_tokens
+        premium_session_tokens += new_premium_tokens
+
+        if deduct_tokens:
+            data[user_id]["premium_balance"] -= new_premium_tokens
+
+    if new_images:
+        data[user_id]["images"] = data[user_id].get("images", 0) + new_images
+        data["global"]["images"] = data["global"].get("images", 0) + new_images
+        session_images += new_images
+
+        if deduct_tokens:
+            data[user_id]["image_balance"] -= new_images
+
+    update_json_file(data)
+
+
 """========================SETUP========================="""
 
 
