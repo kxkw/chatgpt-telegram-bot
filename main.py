@@ -1133,12 +1133,13 @@ def handle_vision_command(message: types.Message):
     user = message.from_user
     image_path = "image_for_vision_" + str(user.id) + ".jpg"
 
-    # Мб вынести все проверки в лямбда функцию хэндлера команды?
-    if is_user_blacklisted(user.id):
-        return
-
+    # Если пользователя нет в базе, то перенаправляем его на команду /start и выходим
     if not is_user_exists(user.id):
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        if is_user_blacklisted(user.id):
+            return
+        else:
+            bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
+                                  "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
 
     if user.id != ADMIN_ID:
