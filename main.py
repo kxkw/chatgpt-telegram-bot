@@ -1301,7 +1301,13 @@ def handle_message(message):
     global session_tokens, premium_session_tokens, request_number, data
     user = message.from_user
 
-    if is_user_blacklisted(user.id):
+    # Если пользователя нет в базе, то перенаправляем его на команду /start и выходим
+    if not is_user_exists(user.id):
+        if is_user_blacklisted(user.id):
+            return
+        else:
+            bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
+                                  "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
 
     # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
