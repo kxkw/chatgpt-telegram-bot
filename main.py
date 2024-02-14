@@ -14,8 +14,7 @@ import base64
 import requests
 
 
-
-MODEL = "gpt-3.5-turbo-1106"  # 16k
+DEFAULT_MODEL = "gpt-3.5-turbo-1106"  # 16k
 PREMIUM_MODEL = "gpt-4-1106-preview"  # 128k tokens context window
 MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
@@ -111,7 +110,7 @@ def get_user_prompt(user_id: int) -> str:
 
 
 # Function to call the OpenAI API and get the response
-def get_chatgpt_response(user_request: str, lang_model=MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
+def get_chatgpt_response(user_request: str, lang_model=DEFAULT_MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
     messages = [{"role": "system", "content": system_prompt}]
 
     if prev_answer is not None:
@@ -168,13 +167,13 @@ def get_recent_active_users(days: int) -> list:
 # Function to get user current model
 def get_user_active_model(user_id: int) -> str:
     if data[user_id].get("lang_model") is None:
-        return MODEL
+        return DEFAULT_MODEL
     else:
         model = str(data[user_id]["lang_model"])
         if model == "premium":
             return PREMIUM_MODEL
         else:
-            return MODEL
+            return DEFAULT_MODEL
 
 
 # Function to calculate the cost of the user requests (default + premium) in cents
@@ -867,13 +866,13 @@ def handle_switch_model_command(message):
     user_model = get_user_active_model(user_id)
 
     # Определяем целевую языковую модель в зависимости от текущей
-    if user_model == MODEL:
+    if user_model == DEFAULT_MODEL:
         target_model_type = "premium"
         target_model = PREMIUM_MODEL
         postfix = "(ПРЕМИУМ)\n\nВнимание! Генерация ответа с данной моделью может занимать до двух минут!"
     elif user_model == PREMIUM_MODEL:
         target_model_type = "default"
-        target_model = MODEL
+        target_model = DEFAULT_MODEL
         postfix = "(обычная)"
     else:  # Условие недостижимо, но на всякий случай
         bot.reply_to(message, f"Ошибка при смене модели, перешлите это сообщение админу (+компенсация 50к токенов)\n"
@@ -1318,7 +1317,7 @@ def handle_message(message):
     user_model: str = get_user_active_model(user.id)
 
     # Проверяем, есть ли у пользователя токены на балансе в зависимости от выбранной языковой модели
-    if user_model == MODEL:
+    if user_model == DEFAULT_MODEL:
         if data[user.id]["balance"] <= 0:
             bot.reply_to(message, 'У вас закончились токены, пополните баланс!\n'
                                   '<span class="tg-spoiler">/help в помощь</span>', parse_mode="HTML")
