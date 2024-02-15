@@ -128,6 +128,17 @@ def get_chatgpt_response(user_request: str, lang_model=DEFAULT_MODEL, prev_answe
     )
 
 
+# Function to generate image with OpenAI API
+def generate_image(image_prompt, model="dall-e-3", size="1024x1024", quality="hd"):
+    response = openai.Image.create(
+        model=model,
+        prompt=image_prompt,
+        size=size,
+        quality=quality  # hd and standard, hd costs x2
+    )
+    return response
+
+
 # Function to get all user's referrals
 def get_user_referrals(user_id: int) -> list:
     user_referrals = []
