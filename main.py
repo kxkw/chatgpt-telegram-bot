@@ -1075,12 +1075,7 @@ def handle_imagine_command(message):
     bot.send_chat_action(message.chat.id, "upload_photo")
 
     try:
-        response = openai.Image.create(
-            model="dall-e-3",
-            prompt=image_prompt,
-            size="1024x1024",
-            quality="hd"  # hd and standard, hd costs x2
-        )
+        response = generate_image(image_prompt)
     except openai.error.InvalidRequestError as e:
         # print(e.http_status)
         error_text = ("Произошла ошибка при генерации изображения 😵\n\n"
