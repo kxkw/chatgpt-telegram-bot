@@ -1036,12 +1036,13 @@ def handle_imagine_command(message):
     global session_images, data
     user = message.from_user
 
-    if is_user_blacklisted(user.id):
-        return
-
     if not is_user_exists(user.id):
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
+                              "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
+    else:
+        if is_user_blacklisted(user.id):
+            return
 
     # Check for user IMAGE balance
     if data[user.id].get("image_balance") is None or data[user.id]["image_balance"] <= 0:
