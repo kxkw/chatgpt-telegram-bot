@@ -8,14 +8,13 @@ import os
 from datetime import datetime, timedelta
 import time
 
-from telebot.util import extract_arguments
+from telebot.util import extract_arguments, extract_command
 from telebot import types
 import base64
 import requests
 
 
-
-MODEL = "gpt-3.5-turbo-1106"  # 16k
+DEFAULT_MODEL = "gpt-3.5-turbo-1106"  # 16k
 PREMIUM_MODEL = "gpt-4-1106-preview"  # 128k tokens context window
 MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
@@ -111,7 +110,7 @@ def get_user_prompt(user_id: int) -> str:
 
 
 # Function to call the OpenAI API and get the response
-def get_chatgpt_response(user_request: str, lang_model=MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
+def get_chatgpt_response(user_request: str, lang_model=DEFAULT_MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
     messages = [{"role": "system", "content": system_prompt}]
 
     if prev_answer is not None:
@@ -127,6 +126,17 @@ def get_chatgpt_response(user_request: str, lang_model=MODEL, prev_answer=None, 
         max_tokens=MAX_REQUEST_TOKENS,
         messages=messages
     )
+
+
+# Function to generate image with OpenAI API
+def generate_image(image_prompt, model="dall-e-3", size="1024x1024", quality="hd"):
+    response = openai.Image.create(
+        model=model,
+        prompt=image_prompt,
+        size=size,
+        quality=quality  # hd and standard, hd costs x2
+    )
+    return response
 
 
 # Function to get all user's referrals
@@ -166,15 +176,15 @@ def get_recent_active_users(days: int) -> list:
 
 
 # Function to get user current model
-def get_user_model(user_id: int) -> str:
+def get_user_active_model(user_id: int) -> str:
     if data[user_id].get("lang_model") is None:
-        return MODEL
+        return DEFAULT_MODEL
     else:
         model = str(data[user_id]["lang_model"])
         if model == "premium":
             return PREMIUM_MODEL
         else:
-            return MODEL
+            return DEFAULT_MODEL
 
 
 # Function to calculate the cost of the user requests (default + premium) in cents
@@ -187,9 +197,49 @@ def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> flo
 
 
 # Function to encode the image
-def encode_image(image_path):
+def encode_image_b64(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
+
+
+# Получает на вход новые данные по пользователю по произведенным запросам, потраченным токенам, премиум токенам и изображениям и добавляет их в базу
+# Если deduct_tokens = False, то токены не будут списаны с баланса (например, при запросах администратора)
+# Вызывать, только если у пользователя положительный баланс используемых токенов!
+def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int = None, new_premium_tokens: int = None, new_images: int = None, deduct_tokens: bool = True) -> None:
+
+    global data, session_request_counter, session_tokens, premium_session_tokens, session_images  # Глобальные счетчики текущей сессии
+
+    data[user_id]["requests"] += new_requests
+    data["global"]["requests"] += new_requests
+    session_request_counter += new_requests
+
+    data[user_id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
+
+    if new_tokens:
+        data[user_id]["tokens"] += new_tokens
+        data["global"]["tokens"] += new_tokens
+        session_tokens += new_tokens
+
+        if deduct_tokens:
+            data[user_id]["balance"] -= new_tokens
+
+    if new_premium_tokens:
+        data[user_id]["premium_tokens"] = data[user_id].get("premium_tokens", 0) + new_premium_tokens
+        data["global"]["premium_tokens"] = data["global"].get("premium_tokens", 0) + new_premium_tokens
+        premium_session_tokens += new_premium_tokens
+
+        if deduct_tokens:
+            data[user_id]["premium_balance"] -= new_premium_tokens
+
+    if new_images:
+        data[user_id]["images"] = data[user_id].get("images", 0) + new_images
+        data["global"]["images"] = data["global"].get("images", 0) + new_images
+        session_images += new_images
+
+        if deduct_tokens:
+            data[user_id]["image_balance"] -= new_images
+
+    update_json_file(data)
 
 
 """========================SETUP========================="""
@@ -218,7 +268,7 @@ PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
 IMAGE_PRICE_CENTS = IMAGE_PRICE * 100
 
 # Session token and request counters
-request_number, session_tokens, premium_session_tokens, session_images = 0, 0, 0, 0
+session_request_counter, session_tokens, premium_session_tokens, session_images = 0, 0, 0, 0
 
 
 """====================ADMIN_COMMANDS===================="""
@@ -699,7 +749,7 @@ def handle_help_command(message):
                   "/balance - баланс токенов\n/stats - статистика запросов\n" \
                   "/ask_favor - запросить эирдроп токенов 🙏\n\n" \
                   "/switch_model или /sw - переключить языковую модель\n" \
-                  "/pro или /prem - сделать быстрый премиальный запрос без переключения активной языковой модели\n\n" \
+                  "/pro или /gpt4 - сделать быстрый премиальный запрос без переключения активной языковой модели\n\n" \
                   "/prompt или /p - установить свой системный промпт\n" \
                   "/reset_prompt - вернуть промпт по умолчанию\n"
     bot.reply_to(message, help_string)
@@ -864,16 +914,16 @@ def handle_switch_model_command(message):
         bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
         return
 
-    user_model = get_user_model(user_id)
+    user_model = get_user_active_model(user_id)
 
     # Определяем целевую языковую модель в зависимости от текущей
-    if user_model == MODEL:
+    if user_model == DEFAULT_MODEL:
         target_model_type = "premium"
         target_model = PREMIUM_MODEL
         postfix = "(ПРЕМИУМ)\n\nВнимание! Генерация ответа с данной моделью может занимать до двух минут!"
     elif user_model == PREMIUM_MODEL:
         target_model_type = "default"
-        target_model = MODEL
+        target_model = DEFAULT_MODEL
         postfix = "(обычная)"
     else:  # Условие недостижимо, но на всякий случай
         bot.reply_to(message, f"Ошибка при смене модели, перешлите это сообщение админу (+компенсация 50к токенов)\n"
@@ -997,12 +1047,13 @@ def handle_imagine_command(message):
     global session_images, data
     user = message.from_user
 
-    if is_user_blacklisted(user.id):
-        return
-
     if not is_user_exists(user.id):
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
+                              "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
+    else:
+        if is_user_blacklisted(user.id):
+            return
 
     # Check for user IMAGE balance
     if data[user.id].get("image_balance") is None or data[user.id]["image_balance"] <= 0:
@@ -1019,19 +1070,12 @@ def handle_imagine_command(message):
 
     log_message = f"\nUser {user.id} {user.full_name} has requested image generation"
     print(log_message)
-    # if user.id != ADMIN_ID:
-    #     bot.send_message(ADMIN_ID, log_message)
 
     # Симулируем эффект отправки изображения, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "upload_photo")
 
     try:
-        response = openai.Image.create(
-            model="dall-e-3",
-            prompt=image_prompt,
-            size="1024x1024",
-            quality="hd"  # hd and standard, hd costs x2
-        )
+        response = generate_image(image_prompt)
     except openai.error.InvalidRequestError as e:
         # print(e.http_status)
         error_text = ("Произошла ошибка при генерации изображения 😵\n\n"
@@ -1064,145 +1108,17 @@ def handle_imagine_command(message):
     except telebot.apihelper.ApiTelegramException as e:
         pass
 
-    session_images += 1
+    update_global_user_data(
+        user.id,
+        new_images=1,
+        deduct_tokens=True if user.id != ADMIN_ID else False
+    )
 
-    data[user.id]["image_balance"] -= 1
-    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
+    print("Image was generated and sent to user")
 
-    if "images" in data[user.id]:
-        data[user.id]["images"] += 1
-    else:
-        data[user.id]["images"] = 1
-
-    # Обновляем глобальную статистику по количеству запросов сгенерированных изображений (режим обратной совместимости)
-    if "images" in data["global"]:
-        data["global"]["images"] += 1
-    else:
-        data["global"]["images"] = 1
-
-    update_json_file(data)
-
-    # Кидаем картинку с промптом админу в личку, чтобы он тоже окультуривался
+    # Кидаем картинку с промптом админу в личку, чтобы он тоже окультуривался (но в обезличенном виде)
     if user.id != ADMIN_ID:
         bot.send_photo(ADMIN_ID, image_url, caption=f"{image_prompt}\n\n")
-
-
-# Define the handler for the /pro command to make premium requests
-# Большая часть кода скопипащена из обработчика обычных запросов (повторение кода) и это кринж. Исправить.
-@bot.message_handler(commands=["pro", "prem", "premium", "gpt4"])
-def handle_pro_command(message):
-    global session_tokens, premium_session_tokens, request_number, data
-    user = message.from_user
-
-    if is_user_blacklisted(user.id):
-        return
-
-    if not is_user_exists(user.id):
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
-        return
-
-    user_request = extract_arguments(message.text)
-    if user_request == "":
-        bot.reply_to(message, "Введите текст после команды /pro или /prem для обращения к *GPT-4* без смены активной языковой модели\n\n"
-                              "Пример: `/pro напиши код калькулятора на python с использованием библиотеки telebot`", parse_mode="Markdown")
-        return
-
-    if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
-        bot.reply_to(message, 'У вас закончились премиальные токены, пополните баланс!')
-        return
-
-    # Симулируем эффект набора текста, пока бот получает ответ
-    bot.send_chat_action(message.chat.id, "typing")
-
-    # # Send the user's message to OpenAI API and get the response
-    try:
-        if message.reply_to_message is not None:
-            response = get_chatgpt_response(user_request, lang_model=PREMIUM_MODEL, prev_answer=message.reply_to_message.text,
-                                            system_prompt=get_user_prompt(user.id))
-        else:
-            response = get_chatgpt_response(user_request, lang_model=PREMIUM_MODEL, system_prompt=get_user_prompt(user.id))
-    except openai.error.RateLimitError:
-        print("\nЛимит запросов! Или закончились деньги на счету OpenAI")
-        bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
-        return
-    except Exception as e:
-        print("\nОшибка при запросе по API, OpenAI сбоит!")
-        bot.reply_to(message, "Произошла ошибка на серверах OpenAI.\n"
-                              "Пожалуйста, попробуйте еще раз или повторите запрос позже")
-        print(e)
-        return
-
-    # Получаем стоимость запроса по АПИ в токенах
-    request_tokens = response["usage"]["total_tokens"]
-    premium_session_tokens += request_tokens
-    request_number += 1
-
-    # Обновляем глобальную статистику по количеству запросов и использованных токенов (режим обратной совместимости с версией без премиум токенов)
-    data["global"]["requests"] += 1
-    if "premium_tokens" in data["global"]:
-        data["global"]["premium_tokens"] += request_tokens
-    else:
-        data["global"]["premium_tokens"] = request_tokens
-
-    # Если юзер не админ, то списываем токены с баланса
-    if user.id != ADMIN_ID:
-        data[user.id]["premium_balance"] -= request_tokens
-
-    data[user.id]["requests"] += 1
-    if "premium_tokens" in data[user.id]:
-        data[user.id]["premium_tokens"] += request_tokens
-    else:
-        data[user.id]["premium_tokens"] = request_tokens
-
-    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
-
-    update_json_file(data)
-
-    request_price = request_tokens * PREMIUM_PRICE_CENTS
-
-    # To prevent sending too long messages, we split the response into chunks of 4096 characters
-    split_message = telebot.util.smart_split(response.choices[0].message.content, 4096)
-
-    error_text = f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: "
-
-    # Send the response back to the user, but check for `parse_mode` and `message is too long` errors
-    if message.chat.type == "private":
-        try:
-            for string in split_message:
-                bot.send_message(message.chat.id, string, parse_mode="Markdown")
-        except telebot.apihelper.ApiTelegramException as e:
-            print(error_text + str(e))
-            for string in split_message:
-                bot.send_message(message.chat.id, string)
-    else:  # В групповом чате отвечать на конкретное сообщение, а не просто отправлять сообщение в чат
-        try:
-            for string in split_message:
-                bot.reply_to(message, string, parse_mode="Markdown", allow_sending_without_reply=True)
-        except telebot.apihelper.ApiTelegramException as e:
-            print(error_text + str(e))
-            for string in split_message:
-                bot.reply_to(message, string, allow_sending_without_reply=True)
-
-    # Если сообщение было в групповом чате, то указать данные о нём
-    if message.chat.id < 0:
-        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
-    else:
-        chat_line = ""
-
-    # Формируем лог работы для админа
-    admin_log = (f"ПРЕМ Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
-                 f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
-                 f"Юзер: {user.full_name} @{user.username} {user.id}\n"
-                 f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
-                 f"{chat_line}"
-                 f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
-
-    # Пишем лог работы в консоль
-    print("\n" + admin_log)
-
-    # Отправляем лог работы админу
-    if message.chat.id != ADMIN_ID:
-        bot.send_message(ADMIN_ID, admin_log)
 
 
 # Define the handler for the /vision command to use `gpt-4-vision-preview` model for incoming images
@@ -1212,20 +1128,23 @@ def handle_vision_command(message: types.Message):
     user = message.from_user
     image_path = "image_for_vision_" + str(user.id) + ".jpg"
 
-    # Мб вынести все проверки в лямбда функцию хэндлера команды?
-    if is_user_blacklisted(user.id):
-        return
-
+    # Если пользователя нет в базе, то перенаправляем его на команду /start и выходим
     if not is_user_exists(user.id):
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
-        return
-
-    if user.id != ADMIN_ID:
-        bot.reply_to(message, "Функция распознавания изображений временно доступна только админу.")
+        if is_user_blacklisted(user.id):
+            return
+        else:
+            bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
+                                  "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
 
     # TODO: или получать аргументы из message.text, если кэпшона к фотке нет (а значит и самой фотки нет, мб она в отвечаемом сообщении)
     user_request = message.caption
+
+    if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
+        bot.reply_to(message, 'У вас закончились премиальные токены, пополните баланс!', parse_mode="HTML")
+        return
+    current_price_cents = PREMIUM_PRICE_CENTS
+    admin_log = "ВИЖН "
 
     # if user_request == "":
     #     bot.reply_to(message, "Введите текст после команды /vision или /v для обращения к *GPT-4 Vision*\n\n"
@@ -1238,13 +1157,11 @@ def handle_vision_command(message: types.Message):
     # Get the file ID
     file_id = photo.file_id
 
-    # Now you can use the file_id to download the photo
-    # For example:
+    # Download the photo
     file_info = bot.get_file(file_id)
     downloaded_file = bot.download_file(file_info.file_path)
 
     # Now `downloaded_file` contains the photo file
-    # You can save it locally if you want
     with open(image_path, 'wb') as new_file:
         new_file.write(downloaded_file)
         # print("Картинка получена!")
@@ -1253,7 +1170,7 @@ def handle_vision_command(message: types.Message):
     bot.send_chat_action(message.chat.id, "typing")
 
     # Getting the base64 string
-    base64_image = encode_image(image_path)
+    base64_image = encode_image_b64(image_path)
 
     headers = {
         "Content-Type": "application/json",
@@ -1279,52 +1196,95 @@ def handle_vision_command(message: types.Message):
                 ]
             }
         ],
-        "max_tokens": 1000
+        "max_tokens": 700
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response = response.json()
     # print(response.status_code)  # 200
     # print(response.json())
 
-    # Send the response back to the user
-    bot.reply_to(message, response.json()["choices"][0]["message"]["content"])
-
-    # TODO: добавить списание токенов с баланса для пользователей
+    request_tokens = response["usage"]["total_tokens"]
+    # print(f"Запрос на {request_tokens} токенов")
 
     # delete image file
     os.remove(image_path)
+
+    update_global_user_data(
+        user.id,
+        new_premium_tokens=request_tokens,
+        deduct_tokens=True if user.id != ADMIN_ID else False
+    )
+
+    # Считаем стоимость запроса в центах
+    request_price_cents = request_tokens * current_price_cents
+
+    try:  # Send the response back to the user
+        bot.reply_to(message, response["choices"][0]["message"]["content"], parse_mode="Markdown", allow_sending_without_reply=True)
+    except telebot.apihelper.ApiTelegramException as e:
+        print(f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: " + str(e))
+        bot.reply_to(message, response["choices"][0]["message"]["content"], allow_sending_without_reply=True)
+
+    # Если сообщение было в групповом чате, то указать данные о нём
+    if message.chat.id < 0:
+        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
+    else:
+        chat_line = ""
+
+    # Формируем лог работы для админа
+    admin_log += (f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price_cents, 3)}\n"
+                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
+                  f"Юзер: {user.full_name} @{user.username} {user.id}\n"
+                  f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
+                  f"{chat_line}"
+                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
+
+    # Пишем лог работы в консоль
+    print("\n" + admin_log)
+
+    # Отправляем лог работы админу в тг
+    if message.chat.id != ADMIN_ID:
+        bot.send_message(ADMIN_ID, admin_log)
 
 
 # Define the message handler for incoming messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    global session_tokens, premium_session_tokens, request_number, data
+    global session_tokens, premium_session_tokens, session_request_counter, data
     user = message.from_user
-
-    if is_user_blacklisted(user.id):
-        return
-
-    # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
-    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id and not message.text.startswith('//'):
-        print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
-        return
 
     # Если пользователя нет в базе, то перенаправляем его на команду /start и выходим
     if not is_user_exists(user.id):
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
-                              "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
+        if is_user_blacklisted(user.id):
+            return
+        else:
+            bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start\n\n"
+                                  "Подсказка: за регистрацию по рефке вы получите на 50% больше токенов!")
         return
 
-    user_model: str = get_user_model(user.id)
-    # print("Модель юзера: " + user_model)
+    # Если юзер ответил на ответ боту другого юзера в групповом чате, то выходим, отвечать не нужно (issue #27)
+    if message.reply_to_message is not None and message.reply_to_message.from_user.id != bot.get_me().id and not message.text.startswith('/'):
+        # print(f"\nUser {user.full_name} @{user.username} replied to another user, skip")
+        return
+
+    user_model: str
+
+    if extract_command(message.text) in ["pro", "prem", "premium", "gpt4"]:
+        user_model = PREMIUM_MODEL
+        message.text = extract_arguments(message.text)
+        if message.text == "":
+            bot.reply_to(message, "Введите текст после команды /pro или /gpt4 для обращения к *GPT-4* без смены активной языковой модели\n\n"
+                                  "Пример: `/pro напиши код калькулятора на python`", parse_mode="Markdown")
+            return
+    else:
+        user_model = get_user_active_model(user.id)
+
     # Проверяем, есть ли у пользователя токены на балансе в зависимости от выбранной языковой модели
-    if user_model == MODEL:
+    if user_model == DEFAULT_MODEL:
         if data[user.id]["balance"] <= 0:
             bot.reply_to(message, 'У вас закончились токены, пополните баланс!\n'
                                   '<span class="tg-spoiler">/help в помощь</span>', parse_mode="HTML")
             return
-        balance_type = "balance"
-        tokens_type = "tokens"
         current_price_cents = PRICE_CENTS
         admin_log = ""
 
@@ -1332,8 +1292,6 @@ def handle_message(message):
         if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
             bot.reply_to(message, 'У вас закончились премиальные токены, пополните баланс!', parse_mode="HTML")
             return
-        balance_type = "premium_balance"
-        tokens_type = "premium_tokens"
         current_price_cents = PREMIUM_PRICE_CENTS
         admin_log = "ПРЕМ "
 
@@ -1349,7 +1307,8 @@ def handle_message(message):
     # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
     try:
         if message.reply_to_message is not None:
-            response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=message.reply_to_message.text,
+            prev_answer = message.reply_to_message.caption or message.reply_to_message.text
+            response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=prev_answer,
                                             system_prompt=get_user_prompt(user.id))
         else:
             response = get_chatgpt_response(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id))
@@ -1366,37 +1325,13 @@ def handle_message(message):
 
     # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
-    request_number += 1
 
-    if user_model == PREMIUM_MODEL:
-        premium_session_tokens += request_tokens
-    else:
-        session_tokens += request_tokens
-
-    # Обновляем глобальную статистику по количеству запросов и использованных токенов (режим обратной совместимости с версией без премиум токенов)
-    data["global"]["requests"] += 1
-    if tokens_type in data["global"]:
-        data["global"][tokens_type] += request_tokens
-    else:
-        data["global"][tokens_type] = request_tokens
-
-    # Если юзер не админ, то списываем токены с баланса
-    if user.id != ADMIN_ID:
-        data[user.id][balance_type] -= request_tokens
-
-    data[user.id]["requests"] += 1
-
-    # Обновляем данные юзера по количеству использованных токенов (режим обратной совместимости с версией без премиум токенов)
-    if tokens_type in data[user.id]:
-        data[user.id][tokens_type] += request_tokens
-    else:
-        data[user.id][tokens_type] = request_tokens
-
-    # получаем текущее время и прибавляем +3 часа
-    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
-
-    # Записываем инфу о количестве запросов и токенах в файл
-    update_json_file(data)
+    update_global_user_data(
+        user.id,
+        new_tokens=request_tokens if user_model == DEFAULT_MODEL else None,
+        new_premium_tokens=request_tokens if user_model == PREMIUM_MODEL else None,
+        deduct_tokens=True if user.id != ADMIN_ID else False
+    )
 
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
     request_price = request_tokens * current_price_cents
@@ -1431,7 +1366,7 @@ def handle_message(message):
         chat_line = ""
 
     # Формируем лог работы для админа
-    admin_log += (f"Запрос {request_number}: {request_tokens} за ¢{round(request_price, 3)}\n"
+    admin_log += (f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price, 3)}\n"
                   f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
                   f"Юзер: {user.full_name} @{user.username} {user.id}\n"
                   f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
