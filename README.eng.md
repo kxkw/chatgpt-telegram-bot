@@ -7,30 +7,30 @@ The bot supports systems of balance tokens for every user, which are used for AP
 Bot sends users messages using OpenAI API and returns back generated answer. All requests from users are sent to the admin's personal chat with the bot.
 Admin has full control under the bot using special admin's commands.
 
-Доступно две основные языковые модели:  
-- Основная: `gpt-3.5-turbo-1106`, контекстное окно 16k токенов  
-- Премиум: `gpt-4-1106-preview`, контекстное окно 128k токенов  
+There are available two main language models:  
+- Basic: `gpt-3.5-turbo-1106`, context window 16k tokens;
+- Premium: `gpt-4-1106-preview`, context window 128k tokens.     
 
-Для генерации изображений используется модель `dall-e-3`.
+The `dall-e-3` model is used to generate images.
 
-### Подготовка к работе
+### Preparation for work
 
-Для работы необходимо создать и заполнить файл `.env` в директории скрипта своими значениями следующим образом:
+First of all, users must create and fill a file `.env` in the directory of the script with their own value, like in the example:
 ```env
 OPENAI_API_KEY=yourapikey  
 TELEGRAM_API_KEY=yourbottoken  
 ADMIN_CHAT_ID=123456789
 ```
 
-В данном файле:  
-1. `OPENAI_API_KEY` - API-ключ от OpenAI
-2. `TELEGRAM_API_KEY` - API-токен от бота в Telegram
-3. `ADMIN_CHAT_ID` - ID админа в Telegram
+In this file:  
+1. `OPENAI_API_KEY` - API-key from OpenAI;
+2. `TELEGRAM_API_KEY` - API-token from bot in Telegram;
+3. `ADMIN_CHAT_ID` - Admin's ID in Telegram;
 
-В репозитории находится файл `example.env` - это образец необходимого для работы `.env` файла. 
-Достаточно заполнить его своими значениями и переименовать, чтобы не создавать файл самостоятельно.  
+`example.env` is a template of the `.env` file, which u can find in the repository.
+All you need is to replace the value from the file with your value and rename the file.
 
-### Запуск бота
+### Launch bot
 `python main.py`  
 
 При первом запуске в директории скрипта будет автоматически создан файл `data.json`, 
