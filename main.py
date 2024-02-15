@@ -1059,8 +1059,6 @@ def handle_imagine_command(message):
 
     log_message = f"\nUser {user.id} {user.full_name} has requested image generation"
     print(log_message)
-    # if user.id != ADMIN_ID:
-    #     bot.send_message(ADMIN_ID, log_message)
 
     # Симулируем эффект отправки изображения, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "upload_photo")
@@ -1104,25 +1102,15 @@ def handle_imagine_command(message):
     except telebot.apihelper.ApiTelegramException as e:
         pass
 
-    session_images += 1
+    update_global_user_data(
+        user.id,
+        new_images=1,
+        deduct_tokens=True if user.id != ADMIN_ID else False
+    )
 
-    data[user.id]["image_balance"] -= 1
-    data[user.id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
+    print("Image was generated and sent to user")
 
-    if "images" in data[user.id]:
-        data[user.id]["images"] += 1
-    else:
-        data[user.id]["images"] = 1
-
-    # Обновляем глобальную статистику по количеству запросов сгенерированных изображений (режим обратной совместимости)
-    if "images" in data["global"]:
-        data["global"]["images"] += 1
-    else:
-        data["global"]["images"] = 1
-
-    update_json_file(data)
-
-    # Кидаем картинку с промптом админу в личку, чтобы он тоже окультуривался
+    # Кидаем картинку с промптом админу в личку, чтобы он тоже окультуривался (но в обезличенном виде)
     if user.id != ADMIN_ID:
         bot.send_photo(ADMIN_ID, image_url, caption=f"{image_prompt}\n\n")
 
