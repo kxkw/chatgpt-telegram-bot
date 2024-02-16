@@ -77,9 +77,9 @@ Language model by default - `gpt-3.5-turbo-1106`, but the user can change it usi
   }
 }
 ```
-1. `"global"` - общая статистика бота о количестве запросов и использованных токенов  
-2. Статистика админа: число запросов, использованных токенов, несгораемый баланс и дата последнего обращения  
-3. Статистика каждого из пользователей: число запросов, использованных токенов, баланс, имя, @юзернейм и дата последнего обращения
+1. `"global"` - general bot`s statistics about the number of requests and used tokens.
+2. Admin`s statistics: number of requests, used tokens, infinity tokens balance, and the last message date. 
+3. Statistics for every user: number of requests, used tokens, actual balance of tokens, name, @username, and the last message date.
 
 ### Команды для пользователей  
 `/start` - начало работы: регистрация в системе и получение стартового баланса токенов  
