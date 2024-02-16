@@ -33,33 +33,26 @@ All you need is to replace the value from the file with your value and rename th
 ### Launch bot
 `python main.py`  
 
-При первом запуске в директории скрипта будет автоматически создан файл `data.json`, 
-в котором будут храниться все необходимые данные.  
+After the first launch in script directory will automatically create file `data.json`, which contains all necessary data.
 
-При каждом последующем запуске скрипт будет читать данные из ранее созданного файла. 
-Обновление файла происходит по мере работы.
+After the next launch script will read data from a previously created file.
+File updating as work progresses.
 
-Каждому новому пользователю по умолчанию выдается 30к токенов, 
-которые можно использовать в сообщениях боту для запросов по API. 
+By default, every new user has 30k tokens, which can be used for messages to the bot (API request).
 
-При регистрации по реферальной ссылке начисляется бонус в 20к токенов как пригласившему, так и приглашенному пользователю.
+Using the referrals link to start work with the bot allows you to get an additional bonus of 20k tokens for you and your friend who invited you.
 
-### Общение с ботом
-Общение с ботом происходит в формате "один запрос - один ответ", но, если ответить на конкретное сообщение бота (reply), 
-то последующий ответ будет включать в себя контекст сообщения, на которое ответил пользователь. 
-Это позволяет продолжать беседу, придерживаясь основной темы, без необходимости прописывать контекст в каждом сообщении.
+### Communication with bot
+Communication with the bot works in the format "one question - one answer", but if you reply to the bot`s message, the next answer will contain the context of this message.
+It allows us to continue a conversation on one subject without having to provide context in every message.
 
-При общении в личных сообщениях бот отправляет ответы в диалог, а 
-при общении в групповых чатах - отвечает на конкретное сообщение.
+By default bot uses a standard system prompt for every request - `"You are a helpful assistant"`,
+but users can change the main prompt using the command `/prompt`.
 
-По умолчанию, бот при каждом запросе использует стандартный системный промпт - `"You are a helpful assistant"`, 
-но пользователь, при желании, может указать свой собственный системный промпт через команду `/prompt`.  
+Come back standard system prompt by default user can use the command `/reset_prompt`. 
 
-Вернуть системный промпт по умолчанию можно с помощью команды `/reset_prompt`.  
-
-Модель по умолчанию - `gpt-3.5-turbo-1106`, но пользователь может переключить активную языковую модель через команду `/switch_model`. Для использования премиум модели `gpt-4-1106-preview` необходим положительный баланс премиум токенов.
-
-### Структура файла `data.json`
+Language model by default - `gpt-3.5-turbo-1106`, but the user can change it using the command `/switch_model`. For using the premium model `gpt-4-1106-preview` it is necessary to have a positive balance of tokens.
+### File `data.json` structure
 
 ```json
 {
