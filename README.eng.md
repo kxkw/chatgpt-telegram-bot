@@ -84,6 +84,7 @@ Language model by default - `gpt-3.5-turbo-1106`, but the user can change it usi
 ### The commands for users  
 `/start` - the start of work: registration is a system and getting the initial balance of tokens;  
 `/help` - list available commands;
+
 `/invite` or `/ref` - getting referral link for inviting new users
 `/stats` - вывод статистики по количеству запросов и сумме использованных токенов  
 `/balance` - текущий баланс обычных и премиум токенов  
