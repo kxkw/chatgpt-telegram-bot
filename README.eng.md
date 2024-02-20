@@ -82,13 +82,13 @@ Language model by default - `gpt-3.5-turbo-1106`, but the user can change it usi
 3. Statistics for every user: number of requests, used tokens, actual balance of tokens, name, @username, and the last message date.
 
 ### The commands for users  
-`/start` - the start of work: registration is a system and getting the initial balance of tokens;  
-`/help` - list available commands;
-`/invite` or `/ref` - getting referral link for inviting new users
+`/start` - the start of work: registration is a system and getting the initial balance of tokens;   
+`/help` - list available commands;  
+`/invite` or `/ref` - getting referral link for inviting new users  
 `/stats` - вывод статистики по количеству запросов и сумме использованных токенов  
 `/balance` - текущий баланс обычных и премиум токенов  
 `/prompt` или `/p` - установка своего системного промпта  
-`/reset_prompt` - сброс системного промпта на стандартный  
+`/reset_prompt` - сброс системного промпта на стандартный
 `/topup` - плейсхолдер команды для пополнения баланса  
 `/ask_favor` - запрос бесплатных токенов у админа  
 `/imagine` или `/img` или `/i` - генерация изображения по текстовому описанию  
