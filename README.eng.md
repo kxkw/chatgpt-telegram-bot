@@ -86,11 +86,11 @@ Language model by default - `gpt-3.5-turbo-1106`, but the user can change it usi
 `/help` - list of available commands;  
 `/invite` or `/ref` - getting referral link for inviting new users;  
 `/stats` - displaying statistics on the number of requests and the amount of tokens used;   
-`/balance` - текущий баланс обычных и премиум токенов  
-`/prompt` или `/p` - установка своего системного промпта  
-`/reset_prompt` - сброс системного промпта на стандартный
-`/topup` - плейсхолдер команды для пополнения баланса  
-`/ask_favor` - запрос бесплатных токенов у админа  
+`/balance` - current balance of common and premium tokens;  
+`/prompt` or `/p` - set your own system prompt;  
+`/reset_prompt` - reset system prompt on standard;  
+`/topup` - command placeholder for replenishing balance;  
+`/ask_favor` - request for free tokens to admin;  
 `/imagine` или `/img` или `/i` - генерация изображения по текстовому описанию  
 `/switch_model` или `/switch` или `/sw` - переключение активной языковой модели  
 `/pro` или `/prem` или `/gpt4` - сделать быстрый запрос с помощью GPT-4 без переключения активной языковой модели  
