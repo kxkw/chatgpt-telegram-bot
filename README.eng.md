@@ -97,8 +97,8 @@ Language model by default - `gpt-3.5-turbo-1106`, but the user can change it usi
 
 ### The commands for administrators  
 `/data` or `/d` - sending to admin copy of the file `data.json` or data about the user using his user_id or @username;  
-`/refill` or `/r` - refill balance user;  
+`/refill` or `/r` - refill user balance;  
 `/block` or `/ban` - block user;  
 `/stop` - stops the bot completely;  
-`/announce` or `/a` or `/notify` - send a message to all or chosen bots users;  
+`/announce` or `/a` or `/notify` - send a message to all or chosen users;  
 `/recent_users` or `/recent` - get a list of active users for last N days.  
