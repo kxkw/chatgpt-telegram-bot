@@ -91,14 +91,14 @@ Language model by default - `gpt-3.5-turbo-1106`, but the user can change it usi
 `/reset_prompt` - reset system prompt on standard;  
 `/topup` - command placeholder for replenishing balance;  
 `/ask_favor` - request for free tokens to admin;  
-`/imagine` или `/img` или `/i` - генерация изображения по текстовому описанию  
-`/switch_model` или `/switch` или `/sw` - переключение активной языковой модели  
-`/pro` или `/prem` или `/gpt4` - сделать быстрый запрос с помощью GPT-4 без переключения активной языковой модели  
+`/imagine` or `/img` or `/i` - generating an image using text description;  
+`/switch_model` or `/switch` or `/sw` - switch active language model;  
+`/pro` or `/prem` or `/gpt4` - making a quick request using GPT-4 without switching language model. 
 
-### Команды для администратора
-`/data` или `/d` - отправить админу копию файла `data.json` или данные конкретного пользователя по его user_id или @username  
-`/refill` или `/r` - пополнение баланса пользователя  
-`/block` или `/ban` - заблокировать пользователя  
-`/stop` - полностью останавливает бота  
-`/announce` или `/a` или `/notify` - отправить сообщение всем или выбранным пользователям бота  
-`/recent_users` или `/recent` - получить список активных пользователей за последние n дней  
+### The commands for administrators  
+`/data` or `/d` - sending to admin copy of the file `data.json` or data about the user using his user_id or @username;  
+`/refill` or `/r` - refill balance user;  
+`/block` or `/ban` - block user;  
+`/stop` - stops the bot completely;  
+`/announce` or `/a` or `/notify` - send a message to all or chosen bots users;  
+`/recent_users` or `/recent` - get a list of active users for last N days.  
