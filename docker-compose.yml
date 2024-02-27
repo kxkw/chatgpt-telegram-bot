@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  app:
+    container_name: tg_bot
+    build: ./
+    restart: unless-stopped
+    environment:
+      env-file: .env
+    volumes:
+      - tg_bot:/home/
+
+volumes:
+  tg_bot:

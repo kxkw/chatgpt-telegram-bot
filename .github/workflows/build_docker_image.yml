@@ -1,0 +1,43 @@
+name: "[docker] Build Telegram Bot Image"
+
+on:
+  push:
+    branches: [margarita]
+
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: telegram_bot_image
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Log into registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push image
+        run: |
+          IMAGE_ID=${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's/[\/-]/_/g')
+
+          # tag
+          TAG=$IMAGE_ID:$VERSION
+
+          # Change all uppercase to lowercase
+          TAG=$(echo $TAG | tr '[A-Z]' '[a-z]')
+
+          echo TAG=$TAG
+
+          # Build the Docker image
+          docker build -t $TAG .
+
+          # Docker Push
+          docker push $TAG
