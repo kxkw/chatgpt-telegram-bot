@@ -2,6 +2,8 @@ from typing import Optional
 
 import telebot
 import openai
+from openai import OpenAI
+
 from dotenv.main import load_dotenv
 import json
 import os
@@ -35,7 +37,7 @@ FAVOR_MIN_LIMIT = 5000  # minimum balance to ask for a favor
 load_dotenv()
 
 # Load OpenAI API credentials from .env file
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Create a new Telebot instance
 bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
@@ -121,7 +123,7 @@ def get_chatgpt_response(user_request: str, lang_model=DEFAULT_MODEL, prev_answe
         messages.append({"role": "user", "content": user_request})
         # print("\nЗапрос без контекста")
 
-    return openai.ChatCompletion.create(
+    return client.chat.completions.create(
         model=lang_model,
         max_tokens=MAX_REQUEST_TOKENS,
         messages=messages
@@ -129,12 +131,12 @@ def get_chatgpt_response(user_request: str, lang_model=DEFAULT_MODEL, prev_answe
 
 
 # Function to generate image with OpenAI API
-def generate_image(image_prompt, model="dall-e-3", size="1024x1024", quality="hd"):
-    response = openai.Image.create(
+def generate_image(image_prompt, model="dall-e-3"):
+    response = client.images.generate(
         model=model,
         prompt=image_prompt,
-        size=size,
-        quality=quality  # hd and standard, hd costs x2
+        size="1024x1024",
+        quality="hd"  # hd and standard, hd costs x2
     )
     return response
 
@@ -1076,19 +1078,24 @@ def handle_imagine_command(message):
 
     try:
         response = generate_image(image_prompt)
-    except openai.error.InvalidRequestError as e:
+    except openai.BadRequestError as e:
         # print(e.http_status)
         error_text = ("Произошла ошибка при генерации изображения 😵\n\n"
                       f"Промпт: {image_prompt}\n\n")
 
         if message.chat.id != ADMIN_ID:
-            bot.send_message(message.chat.id, error_text + str(e))
-        bot.send_message(ADMIN_ID, error_text + str(e.error))
-        print(e.error)
+            bot.send_message(message.chat.id, error_text + str(e.body['message']))
+        bot.send_message(ADMIN_ID, error_text + str(json.dumps(e.body, indent=2)))
+        print(e)
         bot.delete_message(wait_message.chat.id, wait_message.message_id)
         return
+    except Exception as e:
+        if message.chat.id != ADMIN_ID:
+            bot.send_message(message.chat.id, "Произошла ошибка при генерации изображения 😵")
+        bot.send_message(ADMIN_ID, "Произошла ошибка при генерации изображения 😵\n\n" + str(e))
+        return
 
-    image_url = response.data[0].url  # или response['data'][0]['url']
+    image_url = response.data[0].url
     # revised_prompt = '<span class="tg-spoiler">' + response.data[0].revised_prompt + '</span>'
 
     try:
@@ -1174,7 +1181,7 @@ def handle_vision_command(message: types.Message):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {openai.api_key}"
+        "Authorization": f"Bearer {client.api_key}"
     }
 
     payload = {
@@ -1204,6 +1211,7 @@ def handle_vision_command(message: types.Message):
     # print(response.status_code)  # 200
     # print(response.json())
 
+    # Vision requests still use old api response format
     request_tokens = response["usage"]["total_tokens"]
     # print(f"Запрос на {request_tokens} токенов")
 
@@ -1219,7 +1227,7 @@ def handle_vision_command(message: types.Message):
     # Считаем стоимость запроса в центах
     request_price_cents = request_tokens * current_price_cents
 
-    try:  # Send the response back to the user
+    try:  # Send the response back to the user. Vision requests still use old api response format
         bot.reply_to(message, response["choices"][0]["message"]["content"], parse_mode="Markdown", allow_sending_without_reply=True)
     except telebot.apihelper.ApiTelegramException as e:
         print(f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: " + str(e))
@@ -1312,7 +1320,7 @@ def handle_message(message):
                                             system_prompt=get_user_prompt(user.id))
         else:
             response = get_chatgpt_response(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id))
-    except openai.error.RateLimitError:
+    except openai.RateLimitError:
         print("\nЛимит запросов! Или закончились деньги на счету OpenAI")
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
         return
@@ -1324,7 +1332,7 @@ def handle_message(message):
         return
 
     # Получаем стоимость запроса по АПИ в токенах
-    request_tokens = response["usage"]["total_tokens"]  # same: response.usage.total_tokens
+    request_tokens = response.usage.total_tokens  # same: response.usage.total_tokens
 
     update_global_user_data(
         user.id,
