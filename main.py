@@ -454,10 +454,13 @@ def handle_top_users_command(message):
         top_users: list = get_top_users_by_data_parameter(max_users, parameter)
     elif parameter in ["ref", "refs", "referrals", "invites"]:
         top_users: list = get_top_users_by_referrals(max_users)
+    elif parameter in ["cost", "price"]:
+        top_users: list = get_top_users_by_cost(max_users)
+        top_users = [(user[0], f"¢{user[1]}") for user in top_users]
     else:
         bot.reply_to(message, f"Неверный параметр: *{parameter}*\n\n"
                               "Доступные параметры: \n- `requests` \n- `tokens` \n- `balance` \n- `premium_tokens` "
-                              "\n- `premium_balance` \n- `images` \n- `image_balance` \n- `favors` \n- `refs`", parse_mode="MARKDOWN")
+                              "\n- `premium_balance` \n- `images` \n- `image_balance` \n- `favors` \n- `refs` \n- `cost`", parse_mode="MARKDOWN")
         return
 
     if not top_users:
