@@ -196,6 +196,16 @@ def get_top_users_by_referrals(max_users: int) -> list:
     return top_users
 
 
+# Function to get top users by cost of their requests
+def get_top_users_by_cost(max_users: int) -> list:
+    top_users = [(user_id, calculate_cost(data[user_id]['tokens'], data[user_id].get('premium_tokens', 0), data[user_id].get('images', 0))) for user_id in list(data.keys())[1:]]
+    top_users = [(user[0], round(user[1], 3)) for user in top_users if user[1] > 0]
+    top_users = sorted(top_users, key=lambda x: x[1], reverse=True)
+    top_users = top_users[:max_users]
+
+    return top_users
+
+
 # Function to get user current model
 def get_user_active_model(user_id: int) -> str:
     if data[user_id].get("lang_model") is None:
