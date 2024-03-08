@@ -420,6 +420,50 @@ def handle_recent_users_command(message):
     bot.reply_to(message, answer)
 
 
+# Define the handler for the admin /top_users command. we get 2 arguments: number of users and parameter
+@bot.message_handler(commands=["top", "top_users"])
+def handle_top_users_command(message):
+    user = message.from_user
+    wrong_input_string = "Укажите целое число пользователей и искомый параметр после команды\n\nПример: `/top 10 requests`"
+
+    if user.id != ADMIN_ID or message.chat.type != "private":
+        return
+
+    try:
+        max_users, parameter = extract_arguments(message.text).split()
+        max_users = int(max_users)
+    except (ValueError, IndexError):
+        bot.reply_to(message, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    if max_users < 1:
+        bot.reply_to(message, wrong_input_string)
+        return
+
+    if parameter in ["requests", "tokens", "balance", "premium_tokens", "premium_balance", "images", "image_balance", "favors", "ref_id"]:
+        top_users: list = get_top_users_by_data_parameter(max_users, parameter)
+    elif parameter in ["ref", "refs", "referrals", "invites"]:
+        top_users: list = get_top_users_by_referrals(max_users)
+    else:
+        bot.reply_to(message, f"Неверный параметр: *{parameter}*\n\n"
+                              "Доступные параметры: \n- `requests` \n- `tokens` \n- `balance` \n- `premium_tokens` "
+                              "\n- `premium_balance` \n- `images` \n- `image_balance` \n- `favors` \n- `refs`", parse_mode="MARKDOWN")
+        return
+
+    if not top_users:
+        bot.reply_to(message, f"Топ пользователей по параметру *{parameter}* не найдено", parse_mode="MARKDOWN")
+        return
+
+    user_place = 1
+    answer = f"Топ {max_users} пользователей by {parameter}:\n\n"
+    for user_id, parameter_value in top_users:
+        answer += (f"{user_place}. {data[user_id]['name']} {data[user_id]['username'] if data[user_id]['username'] != 'None' else ''} "
+                   f"{user_id}: {parameter_value}\n")
+        user_place += 1
+
+    bot.reply_to(message, answer)
+
+
 # Define the handler for the admin /refill command
 @bot.message_handler(commands=["r", "refill"])
 def handle_refill_command(message):
