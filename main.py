@@ -177,6 +177,25 @@ def get_recent_active_users(days: int) -> list:
     return recent_active_users
 
 
+# Function to get top users by specified parameter from data.json (requests, tokens, balance, etc.)
+def get_top_users_by_data_parameter(max_users: int, parameter: str) -> list:
+    top_users = [(user_id, user_data[parameter]) for user_id, user_data in data.items() if user_id != "global" and user_data.get(parameter, 0) > 0]
+    top_users = sorted(top_users, key=lambda x: x[1], reverse=True)
+    top_users = top_users[:max_users]
+
+    return top_users
+
+
+# Function to get top users by invited referrals
+def get_top_users_by_referrals(max_users: int) -> list:
+    top_users = [(user_id, len(get_user_referrals(user_id))) for user_id in list(data.keys())[1:]]
+    top_users = [user for user in top_users if user[1] > 0]
+    top_users = sorted(top_users, key=lambda x: x[1], reverse=True)
+    top_users = top_users[:max_users]
+
+    return top_users
+
+
 # Function to get user current model
 def get_user_active_model(user_id: int) -> str:
     if data[user_id].get("lang_model") is None:
