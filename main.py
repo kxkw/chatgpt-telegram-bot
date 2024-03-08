@@ -177,6 +177,35 @@ def get_recent_active_users(days: int) -> list:
     return recent_active_users
 
 
+# Function to get top users by specified parameter from data.json (requests, tokens, balance, etc.)
+def get_top_users_by_data_parameter(max_users: int, parameter: str) -> list:
+    top_users = [(user_id, user_data[parameter]) for user_id, user_data in data.items() if user_id != "global" and user_data.get(parameter, 0) > 0]
+    top_users = sorted(top_users, key=lambda x: x[1], reverse=True)
+    top_users = top_users[:max_users]
+
+    return top_users
+
+
+# Function to get top users by invited referrals
+def get_top_users_by_referrals(max_users: int) -> list:
+    top_users = [(user_id, len(get_user_referrals(user_id))) for user_id in list(data.keys())[1:]]
+    top_users = [user for user in top_users if user[1] > 0]
+    top_users = sorted(top_users, key=lambda x: x[1], reverse=True)
+    top_users = top_users[:max_users]
+
+    return top_users
+
+
+# Function to get top users by cost of their requests
+def get_top_users_by_cost(max_users: int) -> list:
+    top_users = [(user_id, calculate_cost(data[user_id]['tokens'], data[user_id].get('premium_tokens', 0), data[user_id].get('images', 0))) for user_id in list(data.keys())[1:]]
+    top_users = [(user[0], round(user[1], 3)) for user in top_users if user[1] > 0]
+    top_users = sorted(top_users, key=lambda x: x[1], reverse=True)
+    top_users = top_users[:max_users]
+
+    return top_users
+
+
 # Function to get user current model
 def get_user_active_model(user_id: int) -> str:
     if data[user_id].get("lang_model") is None:
@@ -397,6 +426,53 @@ def handle_recent_users_command(message):
     answer = f"Активные юзеры за последние {num_of_days} дней: {len(recent_active_users)}\n\n"
     for user_id in recent_active_users:
         answer += f"{data[user_id]['name']} {data[user_id]['username']} {user_id}: {data[user_id]['requests']}\n"
+
+    bot.reply_to(message, answer)
+
+
+# Define the handler for the admin /top_users command. we get 2 arguments: number of users and parameter
+@bot.message_handler(commands=["top", "top_users"])
+def handle_top_users_command(message):
+    user = message.from_user
+    wrong_input_string = "Укажите целое число пользователей и искомый параметр после команды\n\nПример: `/top 10 requests`"
+
+    if user.id != ADMIN_ID or message.chat.type != "private":
+        return
+
+    try:
+        max_users, parameter = extract_arguments(message.text).split()
+        max_users = int(max_users)
+    except (ValueError, IndexError):
+        bot.reply_to(message, wrong_input_string, parse_mode="MARKDOWN")
+        return
+
+    if max_users < 1:
+        bot.reply_to(message, wrong_input_string)
+        return
+
+    if parameter in ["requests", "tokens", "balance", "premium_tokens", "premium_balance", "images", "image_balance", "favors", "ref_id"]:
+        top_users: list = get_top_users_by_data_parameter(max_users, parameter)
+    elif parameter in ["ref", "refs", "referrals", "invites"]:
+        top_users: list = get_top_users_by_referrals(max_users)
+    elif parameter in ["cost", "price"]:
+        top_users: list = get_top_users_by_cost(max_users)
+        top_users = [(user[0], f"¢{user[1]}") for user in top_users]
+    else:
+        bot.reply_to(message, f"Неверный параметр: *{parameter}*\n\n"
+                              "Доступные параметры: \n- `requests` \n- `tokens` \n- `balance` \n- `premium_tokens` "
+                              "\n- `premium_balance` \n- `images` \n- `image_balance` \n- `favors` \n- `refs` \n- `cost`", parse_mode="MARKDOWN")
+        return
+
+    if not top_users:
+        bot.reply_to(message, f"Топ пользователей по параметру *{parameter}* не найдено", parse_mode="MARKDOWN")
+        return
+
+    user_place = 1
+    answer = f"Топ {max_users} пользователей by {parameter}:\n\n"
+    for user_id, parameter_value in top_users:
+        answer += (f"{user_place}. {data[user_id]['name']} {data[user_id]['username'] if data[user_id]['username'] != 'None' else ''} "
+                   f"{user_id}: {parameter_value}\n")
+        user_place += 1
 
     bot.reply_to(message, answer)
 
