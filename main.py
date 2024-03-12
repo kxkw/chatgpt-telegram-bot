@@ -759,8 +759,14 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
             log += f"❌ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
 
     log = f"Рассылка завершена!\nОтправлено {msg_counter} из {len(recepients_list)} сообщений." + "\n\nПолучатели:\n" + log
-    bot.send_message(ADMIN_ID, log)
-    print(log)
+
+    # To prevent sending too long messages, we split the response into chunks of 4096 characters
+    split_message = telebot.util.smart_split(log, 4096)
+    for chunk in split_message:
+        bot.send_message(ADMIN_ID, chunk)
+        time.sleep(0.25)
+
+    print("Рассылка успешно завершена, логи отправлены админу")
 
 
 """====================USER_COMMANDS====================="""
