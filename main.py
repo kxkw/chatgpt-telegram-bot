@@ -776,28 +776,28 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
     if len(recepients_list) == 1 and recepients_list[0] < 0:
         try:
             bot.send_message(recepients_list[0], announcement_text, parse_mode="HTML")
-            log = f"✉️ Сообщение отправлено в чат {recepients_list[0]}"
+            admin_log = f"✉️ Сообщение отправлено в чат {recepients_list[0]}"
         except Exception as e:
-            log = f"❌ Ошибка: чат {recepients_list[0]} не найден"
-        bot.send_message(ADMIN_ID, log)
-        print(log)
+            admin_log = f"❌ Ошибка: чат {recepients_list[0]} не найден"
+        bot.send_message(ADMIN_ID, admin_log)
+        print(admin_log)
         return
 
     msg_counter = 0
-    log = ""
+    admin_log = ""
     for user_id in recepients_list:
         try:
             bot.send_message(user_id, announcement_text, parse_mode="HTML")
             msg_counter += 1
-            log += f"✉️ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
+            admin_log += f"✉️ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
             time.sleep(0.5)
         except Exception as e:
             # print(e)
-            log += f"❌ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
+            admin_log += f"❌ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
 
-    log = f"Рассылка завершена!\nОтправлено {msg_counter} из {len(recepients_list)} сообщений." + "\n\nПолучатели:\n" + log
+    admin_log = f"Рассылка завершена!\nОтправлено {msg_counter} из {len(recepients_list)} сообщений." + "\n\nПолучатели:\n" + admin_log
 
-    send_smart_split_message(bot, ADMIN_ID, log)
+    send_smart_split_message(bot, ADMIN_ID, admin_log)
 
     print("Рассылка успешно завершена, логи отправлены админу")
 
