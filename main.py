@@ -273,6 +273,39 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
     update_json_file(data)
 
 
+def send_smart_split_message(chat_id: int, text: str, bot_instance: telebot.TeleBot, max_length: int = 4096, parse_mode: str = None) -> None:
+    """
+    This function sends a message to a specified chat ID, splitting the message into chunks if it exceeds the maximum length.
+
+    :param chat_id: The chat ID to send the message to
+    :type chat_id: int
+
+    :param text: The text of the message
+    :type text: str
+
+    :param bot_instance: The Telebot instance to use for sending the message
+    :type bot_instance: telebot.TeleBot
+
+    :param max_length: The maximum length of each message chunk
+    :type max_length: int
+
+    :param parse_mode: The parse mode of the message (e.g., "MARKDOWN" or "HTML")
+    :type parse_mode: str
+
+    :return: None
+    """
+    if len(text) < max_length:
+        bot_instance.send_message(chat_id, text, parse_mode)
+        return
+
+    chunks = telebot.util.smart_split(text, max_length)
+
+    for chunk in chunks:
+        bot_instance.send_message(chat_id, chunk, parse_mode)
+        # Introduce a small delay between each message to avoid hitting Telegram's rate limits
+        time.sleep(0.1)
+
+
 """========================SETUP========================="""
 
 
