@@ -273,6 +273,43 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
     update_json_file(data)
 
 
+def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: str, max_length: int = 4096, parse_mode: str = None, reply_to_message_id: int = None) -> None:
+    """
+    This function sends a message to a specified chat ID, splitting the message into chunks if it exceeds the maximum length.
+
+    :param bot_instance: The Telebot instance to use for sending the message
+    :type bot_instance: telebot.TeleBot
+
+    :param chat_id: The chat ID to send the message to
+    :type chat_id: int
+
+    :param text: The text of the message
+    :type text: str
+
+    :param max_length: The maximum length of each message chunk
+    :type max_length: int
+
+    :param parse_mode: The parse mode of the message (e.g., "MARKDOWN" or "HTML")
+    :type parse_mode: str
+
+    :param reply_to_message_id: The message ID to reply to
+    :type reply_to_message_id: int
+
+    :return: None
+    """
+    reply_parameters = None if reply_to_message_id is None else types.ReplyParameters(reply_to_message_id, allow_sending_without_reply=True)
+
+    if len(text) < max_length:
+        bot_instance.send_message(chat_id, text, parse_mode=parse_mode, reply_parameters=reply_parameters)
+        return
+
+    chunks = telebot.util.smart_split(text, max_length)
+
+    for chunk in chunks:
+        bot_instance.send_message(chat_id, chunk, parse_mode=parse_mode, reply_parameters=reply_parameters)
+        time.sleep(0.1)  # Introduce a small delay between each message to avoid hitting Telegram's rate limits
+
+
 """========================SETUP========================="""
 
 
@@ -739,32 +776,28 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
     if len(recepients_list) == 1 and recepients_list[0] < 0:
         try:
             bot.send_message(recepients_list[0], announcement_text, parse_mode="HTML")
-            log = f"✉️ Сообщение отправлено в чат {recepients_list[0]}"
+            admin_log = f"✉️ Сообщение отправлено в чат {recepients_list[0]}"
         except Exception as e:
-            log = f"❌ Ошибка: чат {recepients_list[0]} не найден"
-        bot.send_message(ADMIN_ID, log)
-        print(log)
+            admin_log = f"❌ Ошибка: чат {recepients_list[0]} не найден"
+        bot.send_message(ADMIN_ID, admin_log)
+        print(admin_log)
         return
 
     msg_counter = 0
-    log = ""
+    admin_log = ""
     for user_id in recepients_list:
         try:
             bot.send_message(user_id, announcement_text, parse_mode="HTML")
             msg_counter += 1
-            log += f"✉️ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
+            admin_log += f"✉️ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
             time.sleep(0.5)
         except Exception as e:
             # print(e)
-            log += f"❌ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
+            admin_log += f"❌ {data[user_id]['name']} {data[user_id]['username']} {user_id}" + "\n"
 
-    log = f"Рассылка завершена!\nОтправлено {msg_counter} из {len(recepients_list)} сообщений." + "\n\nПолучатели:\n" + log
+    admin_log = f"Рассылка завершена!\nОтправлено {msg_counter} из {len(recepients_list)} сообщений." + "\n\nПолучатели:\n" + admin_log
 
-    # To prevent sending too long messages, we split the response into chunks of 4096 characters
-    split_message = telebot.util.smart_split(log, 4096)
-    for chunk in split_message:
-        bot.send_message(ADMIN_ID, chunk)
-        time.sleep(0.25)
+    send_smart_split_message(bot, ADMIN_ID, admin_log)
 
     print("Рассылка успешно завершена, логи отправлены админу")
 
@@ -1426,28 +1459,23 @@ def handle_message(message):
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
     request_price = request_tokens * current_price_cents
 
-    # To prevent sending too long messages, we split the response into chunks of 4096 characters
-    split_message = telebot.util.smart_split(response.choices[0].message.content, 4096)
+    response_content = response.choices[0].message.content
 
     error_text = f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: "
     # Сейчас будет жесткий код
     # Send the response back to the user, but check for `parse_mode` and `message is too long` errors
     if message.chat.type == "private":
         try:
-            for string in split_message:
-                bot.send_message(message.chat.id, string, parse_mode="Markdown")
+            send_smart_split_message(bot, message.chat.id, response_content, parse_mode="Markdown")
         except telebot.apihelper.ApiTelegramException as e:
             print(error_text + str(e))
-            for string in split_message:
-                bot.send_message(message.chat.id, string)
+            send_smart_split_message(bot, message.chat.id, response_content)
     else:  # В групповом чате отвечать на конкретное сообщение, а не просто отправлять сообщение в чат
         try:
-            for string in split_message:
-                bot.reply_to(message, string, parse_mode="Markdown", allow_sending_without_reply=True)
+            send_smart_split_message(bot, message.chat.id, response_content, parse_mode="Markdown", reply_to_message_id=message.message_id)
         except telebot.apihelper.ApiTelegramException as e:
             print(error_text + str(e))
-            for string in split_message:
-                bot.reply_to(message, string, allow_sending_without_reply=True)
+            send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
     # Если сообщение было в групповом чате, то указать данные о нём
     if message.chat.id < 0:
