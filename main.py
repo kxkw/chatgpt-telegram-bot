@@ -273,9 +273,12 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
     update_json_file(data)
 
 
-def send_smart_split_message(chat_id: int, text: str, bot_instance: telebot.TeleBot, max_length: int = 4096, parse_mode: str = None) -> None:
+def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: str, max_length: int = 4096, parse_mode: str = None, reply_to_message_id: int = None) -> None:
     """
     This function sends a message to a specified chat ID, splitting the message into chunks if it exceeds the maximum length.
+
+    :param bot_instance: The Telebot instance to use for sending the message
+    :type bot_instance: telebot.TeleBot
 
     :param chat_id: The chat ID to send the message to
     :type chat_id: int
@@ -283,27 +286,28 @@ def send_smart_split_message(chat_id: int, text: str, bot_instance: telebot.Tele
     :param text: The text of the message
     :type text: str
 
-    :param bot_instance: The Telebot instance to use for sending the message
-    :type bot_instance: telebot.TeleBot
-
     :param max_length: The maximum length of each message chunk
     :type max_length: int
 
     :param parse_mode: The parse mode of the message (e.g., "MARKDOWN" or "HTML")
     :type parse_mode: str
 
+    :param reply_to_message_id: The message ID to reply to
+    :type reply_to_message_id: int
+
     :return: None
     """
+    reply_parameters = None if reply_to_message_id is None else types.ReplyParameters(reply_to_message_id, allow_sending_without_reply=True)
+
     if len(text) < max_length:
-        bot_instance.send_message(chat_id, text, parse_mode)
+        bot_instance.send_message(chat_id, text, parse_mode=parse_mode, reply_parameters=reply_parameters)
         return
 
     chunks = telebot.util.smart_split(text, max_length)
 
     for chunk in chunks:
-        bot_instance.send_message(chat_id, chunk, parse_mode)
-        # Introduce a small delay between each message to avoid hitting Telegram's rate limits
-        time.sleep(0.1)
+        bot_instance.send_message(chat_id, chunk, parse_mode=parse_mode, reply_parameters=reply_parameters)
+        time.sleep(0.1)  # Introduce a small delay between each message to avoid hitting Telegram's rate limits
 
 
 """========================SETUP========================="""
@@ -793,7 +797,7 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
 
     log = f"Рассылка завершена!\nОтправлено {msg_counter} из {len(recepients_list)} сообщений." + "\n\nПолучатели:\n" + log
 
-    send_smart_split_message(ADMIN_ID, log, bot)
+    send_smart_split_message(bot, ADMIN_ID, log)
 
     print("Рассылка успешно завершена, логи отправлены админу")
 
