@@ -1459,28 +1459,23 @@ def handle_message(message):
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
     request_price = request_tokens * current_price_cents
 
-    # To prevent sending too long messages, we split the response into chunks of 4096 characters
-    split_message = telebot.util.smart_split(response.choices[0].message.content, 4096)
+    response_content = response.choices[0].message.content
 
     error_text = f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: "
     # Сейчас будет жесткий код
     # Send the response back to the user, but check for `parse_mode` and `message is too long` errors
     if message.chat.type == "private":
         try:
-            for string in split_message:
-                bot.send_message(message.chat.id, string, parse_mode="Markdown")
+            send_smart_split_message(bot, message.chat.id, response_content, parse_mode="Markdown")
         except telebot.apihelper.ApiTelegramException as e:
             print(error_text + str(e))
-            for string in split_message:
-                bot.send_message(message.chat.id, string)
+            send_smart_split_message(bot, message.chat.id, response_content)
     else:  # В групповом чате отвечать на конкретное сообщение, а не просто отправлять сообщение в чат
         try:
-            for string in split_message:
-                bot.reply_to(message, string, parse_mode="Markdown", allow_sending_without_reply=True)
+            send_smart_split_message(bot, message.chat.id, response_content, parse_mode="Markdown", reply_to_message_id=message.message_id)
         except telebot.apihelper.ApiTelegramException as e:
             print(error_text + str(e))
-            for string in split_message:
-                bot.reply_to(message, string, allow_sending_without_reply=True)
+            send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
     # Если сообщение было в групповом чате, то указать данные о нём
     if message.chat.id < 0:
