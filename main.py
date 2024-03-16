@@ -1381,21 +1381,8 @@ def handle_vision_command(message: types.Message):
         print(f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: " + str(e))
         bot.reply_to(message, response["choices"][0]["message"]["content"], allow_sending_without_reply=True)
 
-    # Если сообщение было в групповом чате, то указать данные о нём
-    if message.chat.id < 0:
-        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
-    else:
-        chat_line = ""
-
     # Формируем лог работы для админа
-    admin_log += (f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price_cents, 3)}\n"
-                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
-                  f"Юзер: {user.full_name} @{user.username} {user.id}\n"
-                  f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
-                  f"{chat_line}"
-                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
-
-    # Пишем лог работы в консоль
+    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents)
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
