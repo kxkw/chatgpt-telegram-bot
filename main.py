@@ -497,7 +497,7 @@ def handle_recent_users_command(message):
     for user_id in recent_active_users:
         answer += f"{data[user_id]['name']} {data[user_id]['username']} {user_id}: {data[user_id]['requests']}\n"
 
-    bot.reply_to(message, answer)
+    send_smart_split_message(bot, ADMIN_ID, answer, reply_to_message_id=message.message_id)
 
 
 # Define the handler for the admin /top_users command. we get 2 arguments: number of users and parameter
