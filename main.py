@@ -227,6 +227,22 @@ def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> flo
     return total_cost
 
 
+def format_cents_to_price_string(price: float) -> str:
+    """
+    This function formats the price in cents to a string with the dollar or cent sign.
+
+    :param price: The price in cents
+    :type price: float
+
+    :return: The formatted price string
+    :rtype: str
+    """
+    if price < 100:
+        return f"{round(price, 2)}¢"
+    else:
+        return f"${round(price / 100, 2)}"
+
+
 # Function to encode the image
 def encode_image_b64(image_path):
     with open(image_path, "rb") as image_file:
