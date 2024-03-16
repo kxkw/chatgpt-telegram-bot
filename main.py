@@ -1490,7 +1490,7 @@ def handle_message(message):
     )
 
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
-    request_price = request_tokens * current_price_cents
+    request_price_cents = request_tokens * current_price_cents
 
     response_content = response.choices[0].message.content
 
@@ -1511,7 +1511,7 @@ def handle_message(message):
             send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
     # Формируем лог работы для админа
-    admin_log += create_request_report(user, message.chat, request_tokens, request_price)
+    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents)
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
