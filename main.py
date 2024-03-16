@@ -51,8 +51,8 @@ DATAFILE = "data.json"
 BACKUPFILE = "data-backup.json"
 
 # Default values for new users, who are not in the data file
-DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
-                "name": "None", "username": "None", "lastdate": "01.01.1990 00:00:00"}
+DEFAULT_NEW_USER_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
+                         "name": "None", "username": "None", "lastdate": "01.01.1990 00:00:00"}
 
 
 """======================FUNCTIONS======================="""
@@ -76,7 +76,7 @@ def is_user_blacklisted(user_id: int) -> bool:
 
 # Function to add new user to the data file
 def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
-    data[user_id] = DEFAULT_DATA.copy()
+    data[user_id] = DEFAULT_NEW_USER_DATA.copy()
     data[user_id]["name"] = name
 
     if username is not None:
