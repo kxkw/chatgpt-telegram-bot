@@ -1403,7 +1403,7 @@ def handle_vision_command(message: types.Message):
         bot.send_message(ADMIN_ID, admin_log)
 
 
-# Define the message handler for incoming messages
+# Define the message handler for incoming messages (default and premium requests)
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     global session_tokens, premium_session_tokens, session_request_counter, data
@@ -1510,21 +1510,8 @@ def handle_message(message):
             print(error_text + str(e))
             send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
-    # Если сообщение было в групповом чате, то указать данные о нём
-    if message.chat.id < 0:
-        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
-    else:
-        chat_line = ""
-
     # Формируем лог работы для админа
-    admin_log += (f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price, 3)}\n"
-                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
-                  f"Юзер: {user.full_name} @{user.username} {user.id}\n"
-                  f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
-                  f"{chat_line}"
-                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
-
-    # Пишем лог работы в консоль
+    admin_log += create_request_report(user, message.chat, request_tokens, request_price)
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
