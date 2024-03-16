@@ -346,14 +346,17 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
     :rtype: str
     """
 
-    request_info = f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price, 3)}\n"
-    session_info = f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
+    request_info = f"Запрос {session_request_counter}: {request_tokens} за {format_cents_to_price_string(request_price)}\n"
+
+    session_cost_cents = calculate_cost(session_tokens, premium_session_tokens, session_images)
+    session_info = f"Сессия: {session_tokens + premium_session_tokens} за {format_cents_to_price_string(session_cost_cents)}\n"
 
     user_info = f"Юзер: {user.full_name} @{user.username} {user.id}\n"
     balance_info = f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
     chat_info = f"Чат: {chat.title} {chat.id}\n" if chat.id < 0 else ""  # Если сообщение было в групповом чате, то указать данные о нём
 
-    global_info = f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}"
+    global_cost_cents = calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0))
+    global_info = f"{data['global']} за {format_cents_to_price_string(global_cost_cents)}"
 
     report = f"{request_info}{session_info}{user_info}{balance_info}{chat_info}{global_info}"
     return report
