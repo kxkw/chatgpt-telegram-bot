@@ -310,6 +310,39 @@ def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: 
         time.sleep(0.1)  # Introduce a small delay between each message to avoid hitting Telegram's rate limits
 
 
+def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, request_tokens: int, request_price: float) -> str:
+    """
+    This function creates a report for the user's request.
+
+    :param user: The user who made the request
+    :type user: telebot.types.User
+
+    :param chat: The chat where the request was made
+    :type chat: telebot.types.Chat
+
+    :param request_tokens: The number of tokens used for the request
+    :type request_tokens: int
+
+    :param request_price: The price of the request in cents
+    :type request_price: float
+
+    :return: The report for the user's request
+    :rtype: str
+    """
+
+    request_info = f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price, 3)}\n"
+    session_info = f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
+
+    user_info = f"Юзер: {user.full_name} @{user.username} {user.id}\n"
+    balance_info = f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
+    chat_info = f"Чат: {chat.title} {chat.id}\n" if chat.id < 0 else ""
+
+    global_info = f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}"
+
+    report = f"{request_info}{session_info}{user_info}{balance_info}{chat_info}{global_info}"
+    return report
+
+
 """========================SETUP========================="""
 
 
