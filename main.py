@@ -335,7 +335,7 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
 
     user_info = f"Юзер: {user.full_name} @{user.username} {user.id}\n"
     balance_info = f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
-    chat_info = f"Чат: {chat.title} {chat.id}\n" if chat.id < 0 else ""
+    chat_info = f"Чат: {chat.title} {chat.id}\n" if chat.id < 0 else ""  # Если сообщение было в групповом чате, то указать данные о нём
 
     global_info = f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}"
 
