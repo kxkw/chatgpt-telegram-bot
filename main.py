@@ -329,6 +329,7 @@ def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: 
 def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, request_tokens: int, request_price: float) -> str:
     """
     This function creates a report for the user's request.
+    Use `parse_mode="HTML"` to send telegram messages with this content.
 
     :param user: The user who made the request
     :type user: telebot.types.User
@@ -351,9 +352,11 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
     session_cost_cents = calculate_cost(session_tokens, premium_session_tokens, session_images)
     session_info = f"Сессия: {session_tokens + premium_session_tokens} за {format_cents_to_price_string(session_cost_cents)}\n"
 
-    user_info = f"Юзер: {user.full_name} @{user.username} {user.id}\n"
+    username = f"@{user.username} " if user.username is not None else ""
+    user_info = f"Юзер: {telebot.util.escape(user.full_name)} {username}<code>{user.id}</code>\n"
+
     balance_info = f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
-    chat_info = f"Чат: {chat.title} {chat.id}\n" if chat.id < 0 else ""  # Если сообщение было в групповом чате, то указать данные о нём
+    chat_info = f"Чат: {telebot.util.escape(chat.title)} {chat.id}\n" if chat.id < 0 else ""  # Если сообщение было в групповом чате, то указать данные о нём
 
     global_cost_cents = calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0))
     global_info = f"{data['global']} за {format_cents_to_price_string(global_cost_cents)}"
@@ -1406,7 +1409,7 @@ def handle_vision_command(message: types.Message):
 
     # Отправляем лог работы админу в тг
     if message.chat.id != ADMIN_ID:
-        bot.send_message(ADMIN_ID, admin_log)
+        bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
 
 
 # Define the message handler for incoming messages (default and premium requests)
@@ -1522,7 +1525,7 @@ def handle_message(message):
 
     # Отправляем лог работы админу в тг
     if message.chat.id != ADMIN_ID:
-        bot.send_message(ADMIN_ID, admin_log)
+        bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
 
 
 # Handler only for bot pinned messages
