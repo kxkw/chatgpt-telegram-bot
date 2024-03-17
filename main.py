@@ -51,8 +51,8 @@ DATAFILE = "data.json"
 BACKUPFILE = "data-backup.json"
 
 # Default values for new users, who are not in the data file
-DEFAULT_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
-                "name": "None", "username": "None", "lastdate": "01.01.1990 00:00:00"}
+DEFAULT_NEW_USER_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
+                         "name": "None", "username": "None", "lastdate": "01.01.1990 00:00:00"}
 
 
 """======================FUNCTIONS======================="""
@@ -76,7 +76,7 @@ def is_user_blacklisted(user_id: int) -> bool:
 
 # Function to add new user to the data file
 def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
-    data[user_id] = DEFAULT_DATA.copy()
+    data[user_id] = DEFAULT_NEW_USER_DATA.copy()
     data[user_id]["name"] = name
 
     if username is not None:
@@ -227,6 +227,22 @@ def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> flo
     return total_cost
 
 
+def format_cents_to_price_string(price: float) -> str:
+    """
+    This function formats the price in cents to a string with the dollar or cent sign.
+
+    :param price: The price in cents
+    :type price: float
+
+    :return: The formatted price string
+    :rtype: str
+    """
+    if price < 100:
+        return f"{round(price, 2)}¢"
+    else:
+        return f"${round(price / 100, 2)}"
+
+
 # Function to encode the image
 def encode_image_b64(image_path):
     with open(image_path, "rb") as image_file:
@@ -308,6 +324,45 @@ def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: 
     for chunk in chunks:
         bot_instance.send_message(chat_id, chunk, parse_mode=parse_mode, reply_parameters=reply_parameters)
         time.sleep(0.1)  # Introduce a small delay between each message to avoid hitting Telegram's rate limits
+
+
+def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, request_tokens: int, request_price: float) -> str:
+    """
+    This function creates a report for the user's request.
+    Use `parse_mode="HTML"` to send telegram messages with this content.
+
+    :param user: The user who made the request
+    :type user: telebot.types.User
+
+    :param chat: The chat where the request was made
+    :type chat: telebot.types.Chat
+
+    :param request_tokens: The number of tokens used for the request
+    :type request_tokens: int
+
+    :param request_price: The price of the request in cents
+    :type request_price: float
+
+    :return: The report for the user's request
+    :rtype: str
+    """
+
+    request_info = f"Запрос {session_request_counter}: {request_tokens} за {format_cents_to_price_string(request_price)}\n"
+
+    session_cost_cents = calculate_cost(session_tokens, premium_session_tokens, session_images)
+    session_info = f"Сессия: {session_tokens + premium_session_tokens} за {format_cents_to_price_string(session_cost_cents)}\n"
+
+    username = f"@{user.username} " if user.username is not None else ""
+    user_info = f"Юзер: {telebot.util.escape(user.full_name)} {username}<code>{user.id}</code>\n"
+
+    balance_info = f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
+    chat_info = f"Чат: {telebot.util.escape(chat.title)} {chat.id}\n" if chat.id < 0 else ""  # Если сообщение было в групповом чате, то указать данные о нём
+
+    global_cost_cents = calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0))
+    global_info = f"{data['global']} за {format_cents_to_price_string(global_cost_cents)}"
+
+    report = f"{request_info}{session_info}{user_info}{balance_info}{chat_info}{global_info}"
+    return report
 
 
 """========================SETUP========================="""
@@ -464,7 +519,7 @@ def handle_recent_users_command(message):
     for user_id in recent_active_users:
         answer += f"{data[user_id]['name']} {data[user_id]['username']} {user_id}: {data[user_id]['requests']}\n"
 
-    bot.reply_to(message, answer)
+    send_smart_split_message(bot, ADMIN_ID, answer, reply_to_message_id=message.message_id)
 
 
 # Define the handler for the admin /top_users command. we get 2 arguments: number of users and parameter
@@ -1318,7 +1373,7 @@ def handle_vision_command(message: types.Message):
                 ]
             }
         ],
-        "max_tokens": 700
+        "max_tokens": 1000
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
@@ -1341,36 +1396,24 @@ def handle_vision_command(message: types.Message):
 
     # Считаем стоимость запроса в центах
     request_price_cents = request_tokens * current_price_cents
+    response_content = response["choices"][0]["message"]["content"]  # Vision requests still use old api response format
 
-    try:  # Send the response back to the user. Vision requests still use old api response format
-        bot.reply_to(message, response["choices"][0]["message"]["content"], parse_mode="Markdown", allow_sending_without_reply=True)
+    try:  # Send the response back to the user
+        send_smart_split_message(bot, message.chat.id, response_content, parse_mode="Markdown", reply_to_message_id=message.message_id)
     except telebot.apihelper.ApiTelegramException as e:
         print(f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: " + str(e))
-        bot.reply_to(message, response["choices"][0]["message"]["content"], allow_sending_without_reply=True)
-
-    # Если сообщение было в групповом чате, то указать данные о нём
-    if message.chat.id < 0:
-        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
-    else:
-        chat_line = ""
+        send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
     # Формируем лог работы для админа
-    admin_log += (f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price_cents, 3)}\n"
-                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
-                  f"Юзер: {user.full_name} @{user.username} {user.id}\n"
-                  f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
-                  f"{chat_line}"
-                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
-
-    # Пишем лог работы в консоль
+    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents)
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
     if message.chat.id != ADMIN_ID:
-        bot.send_message(ADMIN_ID, admin_log)
+        bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
 
 
-# Define the message handler for incoming messages
+# Define the message handler for incoming messages (default and premium requests)
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     global session_tokens, premium_session_tokens, session_request_counter, data
@@ -1457,7 +1500,7 @@ def handle_message(message):
     )
 
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
-    request_price = request_tokens * current_price_cents
+    request_price_cents = request_tokens * current_price_cents
 
     response_content = response.choices[0].message.content
 
@@ -1477,26 +1520,13 @@ def handle_message(message):
             print(error_text + str(e))
             send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
-    # Если сообщение было в групповом чате, то указать данные о нём
-    if message.chat.id < 0:
-        chat_line = f"Чат: {message.chat.title} {message.chat.id}\n"
-    else:
-        chat_line = ""
-
     # Формируем лог работы для админа
-    admin_log += (f"Запрос {session_request_counter}: {request_tokens} за ¢{round(request_price, 3)}\n"
-                  f"Сессия: {session_tokens + premium_session_tokens} за ¢{round(calculate_cost(session_tokens, premium_session_tokens, session_images), 3)}\n"
-                  f"Юзер: {user.full_name} @{user.username} {user.id}\n"
-                  f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
-                  f"{chat_line}"
-                  f"{data['global']} ¢{round(calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0)), 3)}\n")
-
-    # Пишем лог работы в консоль
+    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents)
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
     if message.chat.id != ADMIN_ID:
-        bot.send_message(ADMIN_ID, admin_log)
+        bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
 
 
 # Handler only for bot pinned messages
