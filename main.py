@@ -1396,12 +1396,13 @@ def handle_vision_command(message: types.Message):
 
     # Считаем стоимость запроса в центах
     request_price_cents = request_tokens * current_price_cents
+    response_content = response["choices"][0]["message"]["content"]  # Vision requests still use old api response format
 
-    try:  # Send the response back to the user. Vision requests still use old api response format
-        bot.reply_to(message, response["choices"][0]["message"]["content"], parse_mode="Markdown", allow_sending_without_reply=True)
+    try:  # Send the response back to the user
+        send_smart_split_message(bot, message.chat.id, response_content, parse_mode="Markdown", reply_to_message_id=message.message_id)
     except telebot.apihelper.ApiTelegramException as e:
         print(f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: " + str(e))
-        bot.reply_to(message, response["choices"][0]["message"]["content"], allow_sending_without_reply=True)
+        send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
     # Формируем лог работы для админа
     admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents)
