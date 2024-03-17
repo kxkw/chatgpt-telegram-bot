@@ -566,7 +566,7 @@ def handle_top_users_command(message):
                    f"{user_id}: {parameter_value}\n")
         user_place += 1
 
-    bot.reply_to(message, answer)
+    send_smart_split_message(bot, ADMIN_ID, answer, reply_to_message_id=message.message_id)
 
 
 # Define the handler for the admin /refill command
