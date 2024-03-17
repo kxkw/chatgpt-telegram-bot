@@ -31,7 +31,7 @@ UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (U
 NEW_USER_BALANCE = 30000  # balance for new users
 REFERRAL_BONUS = 20000  # bonus for inviting a new user
 FAVOR_AMOUNT = 30000  # amount of tokens per granted favor
-FAVOR_MIN_LIMIT = 5000  # minimum balance to ask for a favor
+FAVOR_MIN_LIMIT = 10000  # minimum balance to ask for a favor
 
 # load .env file with secrets
 load_dotenv()
