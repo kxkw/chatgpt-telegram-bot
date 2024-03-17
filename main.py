@@ -483,7 +483,7 @@ def handle_data_command(message):
     for ref in user_referrals_list:
         user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
 
-    bot.send_message(ADMIN_ID, user_data_string)
+    send_smart_split_message(bot, ADMIN_ID, user_data_string)
 
 
 # Define the handler for the admin /recent_users command to get recent active users in past n days
