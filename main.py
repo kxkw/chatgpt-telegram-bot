@@ -1373,7 +1373,7 @@ def handle_vision_command(message: types.Message):
                 ]
             }
         ],
-        "max_tokens": 700
+        "max_tokens": 1000
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
