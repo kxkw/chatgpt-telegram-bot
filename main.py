@@ -459,7 +459,7 @@ def handle_data_command(message):
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
     user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0), data[target_user_id].get('images', 0))
-    user_data_string += f"user cost: ¢{round(user_cost_cents, 3)}\n\n"
+    user_data_string += f"user cost: {format_cents_to_price_string(user_cost_cents)}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
     if "favors" in data[target_user_id]:
@@ -483,7 +483,7 @@ def handle_data_command(message):
     for ref in user_referrals_list:
         user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
 
-    bot.send_message(ADMIN_ID, user_data_string)
+    send_smart_split_message(bot, ADMIN_ID, user_data_string)
 
 
 # Define the handler for the admin /recent_users command to get recent active users in past n days
@@ -548,7 +548,7 @@ def handle_top_users_command(message):
         top_users: list = get_top_users_by_referrals(max_users)
     elif parameter in ["cost", "price"]:
         top_users: list = get_top_users_by_cost(max_users)
-        top_users = [(user[0], f"¢{user[1]}") for user in top_users]
+        top_users = [(user[0], f"{format_cents_to_price_string(user[1])}") for user in top_users]
     else:
         bot.reply_to(message, f"Неверный параметр: *{parameter}*\n\n"
                               "Доступные параметры: \n- `requests` \n- `tokens` \n- `balance` \n- `premium_tokens` "
@@ -566,7 +566,7 @@ def handle_top_users_command(message):
                    f"{user_id}: {parameter_value}\n")
         user_place += 1
 
-    bot.reply_to(message, answer)
+    send_smart_split_message(bot, ADMIN_ID, answer, reply_to_message_id=message.message_id)
 
 
 # Define the handler for the admin /refill command
