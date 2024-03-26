@@ -105,6 +105,15 @@ def get_user_id_by_username(username: str) -> Optional[int]:
 
 # Function to get the user's prompt
 def get_user_prompt(user_id: int) -> str:
+    """
+    This function returns the user's prompt from the data file if it exists, otherwise it returns the default system prompt.
+
+    :param user_id: The user's ID
+    :type user_id: int
+
+    :return: The user's prompt
+    :rtype: str
+    """
     if data[user_id].get("prompt") is None:
         return DEFAULT_SYSTEM_PROMPT
     else:
