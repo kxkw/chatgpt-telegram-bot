@@ -31,7 +31,7 @@ UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (U
 NEW_USER_BALANCE = 30000  # balance for new users
 REFERRAL_BONUS = 20000  # bonus for inviting a new user
 FAVOR_AMOUNT = 30000  # amount of tokens per granted favor
-FAVOR_MIN_LIMIT = 5000  # minimum balance to ask for a favor
+FAVOR_MIN_LIMIT = 10000  # minimum balance to ask for a favor
 
 # load .env file with secrets
 load_dotenv()
@@ -105,6 +105,15 @@ def get_user_id_by_username(username: str) -> Optional[int]:
 
 # Function to get the user's prompt
 def get_user_prompt(user_id: int) -> str:
+    """
+    This function returns the user's prompt from the data file if it exists, otherwise it returns the default system prompt.
+
+    :param user_id: The user's ID
+    :type user_id: int
+
+    :return: The user's prompt
+    :rtype: str
+    """
     if data[user_id].get("prompt") is None:
         return DEFAULT_SYSTEM_PROMPT
     else:
@@ -253,7 +262,30 @@ def encode_image_b64(image_path):
 # Если deduct_tokens = False, то токены не будут списаны с баланса (например, при запросах администратора)
 # Вызывать, только если у пользователя положительный баланс используемых токенов!
 def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int = None, new_premium_tokens: int = None, new_images: int = None, deduct_tokens: bool = True) -> None:
+    """
+    This function updates the global and user-specific data based on the new requests, spent tokens, premium tokens and generated images.
+    It also updates the session counters for requests, tokens, premium tokens, and images.
 
+    :param user_id: The user's ID
+    :type user_id: int
+
+    :param new_requests: The number of new requests
+    :type new_requests: int
+
+    :param new_tokens: The number of used tokens
+    :type new_tokens: int
+
+    :param new_premium_tokens: The number of used premium tokens
+    :type new_premium_tokens: int
+
+    :param new_images: The number of generated images
+    :type new_images: int
+
+    :param deduct_tokens: Whether to deduct the tokens from the user's balance
+    :type deduct_tokens: bool
+
+    :returns: None
+    """
     global data, session_request_counter, session_tokens, premium_session_tokens, session_images  # Глобальные счетчики текущей сессии
 
     data[user_id]["requests"] += new_requests
@@ -412,8 +444,9 @@ def handle_data_command(message):
         bot.reply_to(message, "Эта команда недоступна в групповых чатах")
         return
 
-    if target_user_string == '':  # Если аргументов нет, то отправить весь файл
-        bot.send_message(ADMIN_ID, f"Копия файла `{DATAFILE}`:", parse_mode="MARKDOWN")
+    if target_user_string == '':  # Если аргументов нет, то отправить весь файл и указать общее число пользователей
+        bot.send_message(ADMIN_ID, f"Число пользователей: {len(data) - 1}\n\n"
+                                   f"Копия файла `{DATAFILE}`:", parse_mode="MARKDOWN")
         bot.send_document(ADMIN_ID, open(DATAFILE, "rb"))
         print("\nДанные отправлены админу")
         return
