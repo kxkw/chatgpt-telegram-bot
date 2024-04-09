@@ -444,8 +444,9 @@ def handle_data_command(message):
         bot.reply_to(message, "Эта команда недоступна в групповых чатах")
         return
 
-    if target_user_string == '':  # Если аргументов нет, то отправить весь файл
-        bot.send_message(ADMIN_ID, f"Копия файла `{DATAFILE}`:", parse_mode="MARKDOWN")
+    if target_user_string == '':  # Если аргументов нет, то отправить весь файл и указать общее число пользователей
+        bot.send_message(ADMIN_ID, f"Число пользователей: {len(data) - 1}\n\n"
+                                   f"Копия файла `{DATAFILE}`:", parse_mode="MARKDOWN")
         bot.send_document(ADMIN_ID, open(DATAFILE, "rb"))
         print("\nДанные отправлены админу")
         return
