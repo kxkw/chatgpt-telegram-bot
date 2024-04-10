@@ -563,6 +563,11 @@ def handle_data_command(message):
     else:
         images_string = ""
 
+    if "whisper_seconds" in data[target_user_id]:
+        whisper_string = f"whisper seconds: {data[target_user_id].get('whisper_seconds', 0)}\n\n"
+    else:
+        whisper_string = ""
+
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
                        f"{data[target_user_id]['name']} " \
@@ -572,10 +577,12 @@ def handle_data_command(message):
                        f"balance: {data[target_user_id]['balance']}\n\n" \
                        f"{premium_string}" \
                        f"{images_string}" \
+                       f"{whisper_string}" \
                        f"last request: {data[target_user_id]['lastdate']}\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
-    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0), data[target_user_id].get('images', 0))
+    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0),
+                                     data[target_user_id].get('images', 0), data[target_user_id].get('whisper_seconds', 0))
     user_data_string += f"user cost: {format_cents_to_price_string(user_cost_cents)}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
