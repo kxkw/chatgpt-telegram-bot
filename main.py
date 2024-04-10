@@ -10,6 +10,7 @@ import os
 from datetime import datetime, timedelta
 import time
 
+from pydub import AudioSegment
 from telebot.util import extract_arguments, extract_command
 from telebot import types
 import base64
@@ -395,6 +396,69 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
 
     report = f"{request_info}{session_info}{user_info}{balance_info}{chat_info}{global_info}"
     return report
+
+
+def convert_ogg_to_mp3(source_ogg_path: str) -> str:
+    """
+    Convert an OGG audio file to MP3 format using pydub with ffmpeg.
+    Deletes the original OGG file after conversion.
+
+    :param source_ogg_path: the path to the source OGG audio file.
+    :type source_ogg_path: str
+
+    :return: the path to the converted MP3 audio file.
+    :rtype: str
+    """
+    mp3_path = source_ogg_path.replace(".ogg", ".mp3")
+
+    # load the ogg file using pydub
+    sound = AudioSegment.from_ogg(source_ogg_path)
+
+    # save the mp3 file
+    sound.export(mp3_path, format="mp3")
+
+    os.remove(source_ogg_path)
+    return mp3_path
+
+
+def convert_voice_message_to_text(message: telebot.types.Message) -> str:
+    """
+    Convert a voice message to text using OpenAI Whisper V2 model.
+
+    :param message: the Telegram message containing the voice message.
+    :type message: telebot.types.Message
+
+    :return: the text transcription of the voice message.
+    :rtype: str
+    """
+    # get the voice message
+    voice = message.voice
+
+    # get the file ID
+    file_id = voice.file_id
+
+    # download the voice message
+    file_info = bot.get_file(file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+
+    # save the downloaded voice message to a local file
+    voice_ogg_path = f"voice_{message.from_user.id}.ogg"
+    with open(voice_ogg_path, 'wb') as new_file:
+        new_file.write(downloaded_file)
+
+    # convert the voice message from OGG to MP3 format
+    voice_mp3_path = convert_ogg_to_mp3(voice_ogg_path)
+
+    # open the converted MP3 file and create a transcription using OpenAI's Whisper model
+    with open(voice_mp3_path, "rb") as audio_file:
+        transcription = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file
+        )
+
+    # delete the MP3 file from disk
+    os.remove(voice_mp3_path)
+    return transcription.text
 
 
 """========================SETUP========================="""
