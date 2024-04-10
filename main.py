@@ -230,12 +230,13 @@ def get_user_active_model(user_id: int) -> str:
             return DEFAULT_MODEL
 
 
-# Function to calculate the cost of the user requests (default + premium) in cents
-def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> float:
+# Function to calculate the cost of the user requests (default + premium + images + whisper transcription) in cents
+def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0, whisper_seconds: int = 0) -> float:
     tokens_cost = tokens * PRICE_CENTS
     premium_tokens_cost = premium_tokens * PREMIUM_PRICE_CENTS
     images_cost = images * IMAGE_PRICE_CENTS
-    total_cost = tokens_cost + premium_tokens_cost + images_cost
+    whisper_seconds_cost = whisper_seconds * WHISPER_SEC_PRICE_CENTS
+    total_cost = tokens_cost + premium_tokens_cost + images_cost + whisper_seconds_cost
     return total_cost
 
 
