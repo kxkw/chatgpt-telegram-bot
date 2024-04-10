@@ -362,7 +362,7 @@ def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: 
         time.sleep(0.1)  # Introduce a small delay between each message to avoid hitting Telegram's rate limits
 
 
-def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, request_tokens: int, request_price: float) -> str:
+def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, request_tokens: int, request_price: float, voice_seconds: int = None) -> str:
     """
     This function creates a report for the user's request.
     Use `parse_mode="HTML"` to send telegram messages with this content.
@@ -379,13 +379,17 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
     :param request_price: The price of the request in cents
     :type request_price: float
 
+    :param voice_seconds: The duration of the transcribed voice message in seconds (default is None)
+    :type voice_seconds: int
+
     :return: The report for the user's request
     :rtype: str
     """
 
-    request_info = f"Запрос {session_request_counter}: {request_tokens} за {format_cents_to_price_string(request_price)}\n"
+    voice_seconds_info = f" ({voice_seconds} сек)" if voice_seconds is not None else ""
+    request_info = f"Запрос {session_request_counter}: {request_tokens}{voice_seconds_info} за {format_cents_to_price_string(request_price)}\n"
 
-    session_cost_cents = calculate_cost(session_tokens, premium_session_tokens, session_images)
+    session_cost_cents = calculate_cost(session_tokens, premium_session_tokens, session_images, session_whisper_seconds)
     session_info = f"Сессия: {session_tokens + premium_session_tokens} за {format_cents_to_price_string(session_cost_cents)}\n"
 
     username = f"@{user.username} " if user.username is not None else ""
@@ -394,7 +398,7 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
     balance_info = f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
     chat_info = f"Чат: {telebot.util.escape(chat.title)} {chat.id}\n" if chat.id < 0 else ""  # Если сообщение было в групповом чате, то указать данные о нём
 
-    global_cost_cents = calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0))
+    global_cost_cents = calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0), data['global'].get('whisper_seconds', 0))
     global_info = f"{data['global']} за {format_cents_to_price_string(global_cost_cents)}"
 
     report = f"{request_info}{session_info}{user_info}{balance_info}{chat_info}{global_info}"
@@ -491,7 +495,7 @@ IMAGE_PRICE_CENTS = IMAGE_PRICE * 100
 WHISPER_SEC_PRICE_CENTS = WHISPER_MIN_PRICE / 60 * 100
 
 # Session token and request counters
-session_request_counter, session_tokens, premium_session_tokens, session_images = 0, 0, 0, 0
+session_request_counter, session_tokens, premium_session_tokens, session_images, session_whisper_seconds = 0, 0, 0, 0, 0  # TODO: мб бахнуть класс session
 
 
 """====================ADMIN_COMMANDS===================="""
