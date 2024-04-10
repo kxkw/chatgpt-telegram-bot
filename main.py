@@ -10,6 +10,7 @@ import os
 from datetime import datetime, timedelta
 import time
 
+from pydub import AudioSegment
 from telebot.util import extract_arguments, extract_command
 from telebot import types
 import base64
@@ -17,13 +18,15 @@ import requests
 
 
 DEFAULT_MODEL = "gpt-3.5-turbo-0125"  # 16k
-PREMIUM_MODEL = "gpt-4-0125-preview"  # 128k tokens context window
+PREMIUM_MODEL = "gpt-4-turbo-2024-04-09"  # 128k tokens context window
 MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
+# Актуальные цены можно взять с сайта https://openai.com/pricing
 PRICE_1K = 0.002  # price per 1k tokens in USD
 PREMIUM_PRICE_1K = 0.02  # price per 1k tokens in USD for premium model
 IMAGE_PRICE = 0.08  # price per generated image in USD
+WHISPER_MIN_PRICE = 0.006  # price per 1 minute of audio transcription in USD
 
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
@@ -227,12 +230,13 @@ def get_user_active_model(user_id: int) -> str:
             return DEFAULT_MODEL
 
 
-# Function to calculate the cost of the user requests (default + premium) in cents
-def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0) -> float:
+# Function to calculate the cost of the user requests (default + premium + images + whisper transcription) in cents
+def calculate_cost(tokens: int, premium_tokens: int = 0, images: int = 0, whisper_seconds: int = 0) -> float:
     tokens_cost = tokens * PRICE_CENTS
     premium_tokens_cost = premium_tokens * PREMIUM_PRICE_CENTS
     images_cost = images * IMAGE_PRICE_CENTS
-    total_cost = tokens_cost + premium_tokens_cost + images_cost
+    whisper_seconds_cost = whisper_seconds * WHISPER_SEC_PRICE_CENTS
+    total_cost = tokens_cost + premium_tokens_cost + images_cost + whisper_seconds_cost
     return total_cost
 
 
@@ -261,7 +265,8 @@ def encode_image_b64(image_path):
 # Получает на вход новые данные по пользователю по произведенным запросам, потраченным токенам, премиум токенам и изображениям и добавляет их в базу
 # Если deduct_tokens = False, то токены не будут списаны с баланса (например, при запросах администратора)
 # Вызывать, только если у пользователя положительный баланс используемых токенов!
-def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int = None, new_premium_tokens: int = None, new_images: int = None, deduct_tokens: bool = True) -> None:
+def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int = None, new_premium_tokens: int = None,
+                            new_images: int = None, new_whisper_seconds: int = None, deduct_tokens: bool = True) -> None:
     """
     This function updates the global and user-specific data based on the new requests, spent tokens, premium tokens and generated images.
     It also updates the session counters for requests, tokens, premium tokens, and images.
@@ -281,12 +286,15 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
     :param new_images: The number of generated images
     :type new_images: int
 
+    :param new_whisper_seconds: The number of seconds of audio transcription using Whisper V2 model
+    :type new_whisper_seconds: int
+
     :param deduct_tokens: Whether to deduct the tokens from the user's balance
     :type deduct_tokens: bool
 
     :returns: None
     """
-    global data, session_request_counter, session_tokens, premium_session_tokens, session_images  # Глобальные счетчики текущей сессии
+    global data, session_request_counter, session_tokens, premium_session_tokens, session_images, session_whisper_seconds  # Глобальные счетчики текущей сессии
 
     data[user_id]["requests"] += new_requests
     data["global"]["requests"] += new_requests
@@ -317,6 +325,14 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
 
         if deduct_tokens:
             data[user_id]["image_balance"] -= new_images
+
+    if new_whisper_seconds:
+        data[user_id]["whisper_seconds"] = data[user_id].get("whisper_seconds", 0) + new_whisper_seconds
+        data["global"]["whisper_seconds"] = data["global"].get("whisper_seconds", 0) + new_whisper_seconds
+        session_whisper_seconds += new_whisper_seconds
+
+        if deduct_tokens:
+            data[user_id]["balance"] -= new_whisper_seconds * 50  # TODO: обновить конвертацию валют. По ценам выходит 1 секунда = 100 токенов, но я пока щедрый
 
     update_json_file(data)
 
@@ -358,7 +374,7 @@ def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: 
         time.sleep(0.1)  # Introduce a small delay between each message to avoid hitting Telegram's rate limits
 
 
-def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, request_tokens: int, request_price: float) -> str:
+def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, request_tokens: int, request_price: float, voice_seconds: int = None) -> str:
     """
     This function creates a report for the user's request.
     Use `parse_mode="HTML"` to send telegram messages with this content.
@@ -375,13 +391,17 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
     :param request_price: The price of the request in cents
     :type request_price: float
 
+    :param voice_seconds: The duration of the transcribed voice message in seconds (default is None)
+    :type voice_seconds: int
+
     :return: The report for the user's request
     :rtype: str
     """
 
-    request_info = f"Запрос {session_request_counter}: {request_tokens} за {format_cents_to_price_string(request_price)}\n"
+    voice_seconds_info = f" ({voice_seconds} сек)" if voice_seconds is not None else ""
+    request_info = f"Запрос {session_request_counter}: {request_tokens}{voice_seconds_info} за {format_cents_to_price_string(request_price)}\n"
 
-    session_cost_cents = calculate_cost(session_tokens, premium_session_tokens, session_images)
+    session_cost_cents = calculate_cost(session_tokens, premium_session_tokens, session_images, session_whisper_seconds)
     session_info = f"Сессия: {session_tokens + premium_session_tokens} за {format_cents_to_price_string(session_cost_cents)}\n"
 
     username = f"@{user.username} " if user.username is not None else ""
@@ -390,11 +410,74 @@ def create_request_report(user: telebot.types.User, chat: telebot.types.Chat, re
     balance_info = f"Баланс: {data[user.id]['balance']}; {data[user.id].get('premium_balance', '')}\n"
     chat_info = f"Чат: {telebot.util.escape(chat.title)} {chat.id}\n" if chat.id < 0 else ""  # Если сообщение было в групповом чате, то указать данные о нём
 
-    global_cost_cents = calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0))
+    global_cost_cents = calculate_cost(data['global']['tokens'], data['global'].get('premium_tokens', 0), data['global'].get('images', 0), data['global'].get('whisper_seconds', 0))
     global_info = f"{data['global']} за {format_cents_to_price_string(global_cost_cents)}"
 
     report = f"{request_info}{session_info}{user_info}{balance_info}{chat_info}{global_info}"
     return report
+
+
+def convert_ogg_to_mp3(source_ogg_path: str) -> str:
+    """
+    Convert an OGG audio file to MP3 format using pydub with ffmpeg.
+    Deletes the original OGG file after conversion.
+
+    :param source_ogg_path: the path to the source OGG audio file.
+    :type source_ogg_path: str
+
+    :return: the path to the converted MP3 audio file.
+    :rtype: str
+    """
+    mp3_path = source_ogg_path.replace(".ogg", ".mp3")
+
+    # load the ogg file using pydub
+    sound = AudioSegment.from_ogg(source_ogg_path)
+
+    # save the mp3 file
+    sound.export(mp3_path, format="mp3")
+
+    os.remove(source_ogg_path)
+    return mp3_path
+
+
+def convert_voice_message_to_text(message: telebot.types.Message) -> str:
+    """
+    Convert a voice message to text using OpenAI Whisper V2 model.
+
+    :param message: the Telegram message containing the voice message.
+    :type message: telebot.types.Message
+
+    :return: the text transcription of the voice message.
+    :rtype: str
+    """
+    # get the voice message
+    voice = message.voice
+
+    # get the file ID
+    file_id = voice.file_id
+
+    # download the voice message
+    file_info = bot.get_file(file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+
+    # save the downloaded voice message to a local file
+    voice_ogg_path = f"voice_{message.from_user.id}.ogg"
+    with open(voice_ogg_path, 'wb') as new_file:
+        new_file.write(downloaded_file)
+
+    # convert the voice message from OGG to MP3 format
+    voice_mp3_path = convert_ogg_to_mp3(voice_ogg_path)
+
+    # open the converted MP3 file and create a transcription using OpenAI's Whisper model
+    with open(voice_mp3_path, "rb") as audio_file:
+        transcription = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file
+        )
+
+    # delete the MP3 file from disk
+    os.remove(voice_mp3_path)
+    return transcription.text
 
 
 """========================SETUP========================="""
@@ -421,9 +504,10 @@ else:
 PRICE_CENTS = PRICE_1K / 10
 PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
 IMAGE_PRICE_CENTS = IMAGE_PRICE * 100
+WHISPER_SEC_PRICE_CENTS = WHISPER_MIN_PRICE / 60 * 100
 
 # Session token and request counters
-session_request_counter, session_tokens, premium_session_tokens, session_images = 0, 0, 0, 0
+session_request_counter, session_tokens, premium_session_tokens, session_images, session_whisper_seconds = 0, 0, 0, 0, 0  # TODO: мб бахнуть класс session
 
 
 """====================ADMIN_COMMANDS===================="""
@@ -479,6 +563,11 @@ def handle_data_command(message):
     else:
         images_string = ""
 
+    if "whisper_seconds" in data[target_user_id]:
+        whisper_string = f"whisper seconds: {data[target_user_id].get('whisper_seconds', 0)}\n\n"
+    else:
+        whisper_string = ""
+
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
                        f"{data[target_user_id]['name']} " \
@@ -488,10 +577,12 @@ def handle_data_command(message):
                        f"balance: {data[target_user_id]['balance']}\n\n" \
                        f"{premium_string}" \
                        f"{images_string}" \
+                       f"{whisper_string}" \
                        f"last request: {data[target_user_id]['lastdate']}\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
-    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0), data[target_user_id].get('images', 0))
+    user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0),
+                                     data[target_user_id].get('images', 0), data[target_user_id].get('whisper_seconds', 0))
     user_data_string += f"user cost: {format_cents_to_price_string(user_cost_cents)}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
@@ -1446,8 +1537,8 @@ def handle_vision_command(message: types.Message):
         bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
 
 
-# Define the message handler for incoming messages (default and premium requests)
-@bot.message_handler(func=lambda message: True)
+# Define the message handler for incoming messages (default and premium requests, including voice messages)
+@bot.message_handler(content_types=["text", "voice"])
 def handle_message(message):
     global session_tokens, premium_session_tokens, session_request_counter, data
     user = message.from_user
@@ -1499,6 +1590,21 @@ def handle_message(message):
         print(f"\nUser {user.full_name} @{user.username} has no access to model {user_model}")
         return
 
+    voice_duration = None  # duration of the voice message in seconds for transcription
+    # Handler for the voice messages. It will convert voice to text using OpenAI Whisper V2 model
+    if message.content_type == "voice":
+        voice_duration = message.voice.duration
+
+        if voice_duration < 1:
+            bot.reply_to(message, "Ты всегда такой шустренький? Попробуй продержаться подольше!")
+            return
+        elif voice_duration > 300:
+            bot.reply_to(message, "Сори, я не могу отвечать на войсы длиннее 5 минут!")
+            return
+
+        message.text = convert_voice_message_to_text(message)
+        admin_log += "ВОЙС "
+
     # Симулируем эффект набора текста, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "typing")
 
@@ -1529,11 +1635,12 @@ def handle_message(message):
         user.id,
         new_tokens=request_tokens if user_model == DEFAULT_MODEL else None,
         new_premium_tokens=request_tokens if user_model == PREMIUM_MODEL else None,
+        new_whisper_seconds=voice_duration,
         deduct_tokens=True if user.id != ADMIN_ID else False
     )
 
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
-    request_price_cents = request_tokens * current_price_cents
+    request_price_cents = request_tokens * current_price_cents + (voice_duration or 0) * WHISPER_SEC_PRICE_CENTS
 
     response_content = response.choices[0].message.content
 
@@ -1554,7 +1661,7 @@ def handle_message(message):
             send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
     # Формируем лог работы для админа
-    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents)
+    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents, voice_duration)
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
