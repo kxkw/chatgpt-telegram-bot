@@ -265,7 +265,8 @@ def encode_image_b64(image_path):
 # Получает на вход новые данные по пользователю по произведенным запросам, потраченным токенам, премиум токенам и изображениям и добавляет их в базу
 # Если deduct_tokens = False, то токены не будут списаны с баланса (например, при запросах администратора)
 # Вызывать, только если у пользователя положительный баланс используемых токенов!
-def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int = None, new_premium_tokens: int = None, new_images: int = None, deduct_tokens: bool = True) -> None:
+def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int = None, new_premium_tokens: int = None,
+                            new_images: int = None, new_whisper_seconds: int = None, deduct_tokens: bool = True) -> None:
     """
     This function updates the global and user-specific data based on the new requests, spent tokens, premium tokens and generated images.
     It also updates the session counters for requests, tokens, premium tokens, and images.
@@ -285,12 +286,15 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
     :param new_images: The number of generated images
     :type new_images: int
 
+    :param new_whisper_seconds: The number of seconds of audio transcription using Whisper V2 model
+    :type new_whisper_seconds: int
+
     :param deduct_tokens: Whether to deduct the tokens from the user's balance
     :type deduct_tokens: bool
 
     :returns: None
     """
-    global data, session_request_counter, session_tokens, premium_session_tokens, session_images  # Глобальные счетчики текущей сессии
+    global data, session_request_counter, session_tokens, premium_session_tokens, session_images, session_whisper_seconds  # Глобальные счетчики текущей сессии
 
     data[user_id]["requests"] += new_requests
     data["global"]["requests"] += new_requests
@@ -321,6 +325,14 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
 
         if deduct_tokens:
             data[user_id]["image_balance"] -= new_images
+
+    if new_whisper_seconds:
+        data[user_id]["whisper_seconds"] = data[user_id].get("whisper_seconds", 0) + new_whisper_seconds
+        data["global"]["whisper_seconds"] = data["global"].get("whisper_seconds", 0) + new_whisper_seconds
+        session_whisper_seconds += new_whisper_seconds
+
+        if deduct_tokens:
+            data[user_id]["balance"] -= new_whisper_seconds * 50  # TODO: обновить конвертацию валют. По ценам выходит 1 секунда = 100 токенов, но я пока щедрый
 
     update_json_file(data)
 
