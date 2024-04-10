@@ -1530,8 +1530,8 @@ def handle_vision_command(message: types.Message):
         bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
 
 
-# Define the message handler for incoming messages (default and premium requests)
-@bot.message_handler(func=lambda message: True)
+# Define the message handler for incoming messages (default and premium requests, including voice messages)
+@bot.message_handler(content_types=["text", "voice"])
 def handle_message(message):
     global session_tokens, premium_session_tokens, session_request_counter, data
     user = message.from_user
@@ -1583,6 +1583,21 @@ def handle_message(message):
         print(f"\nUser {user.full_name} @{user.username} has no access to model {user_model}")
         return
 
+    voice_duration = None  # duration of the voice message in seconds for transcription
+    # Handler for the voice messages. It will convert voice to text using OpenAI Whisper V2 model
+    if message.content_type == "voice":
+        voice_duration = message.voice.duration
+
+        if voice_duration < 1:
+            bot.reply_to(message, "Ты всегда такой шустренький? Попробуй продержаться подольше!")
+            return
+        elif voice_duration > 300:
+            bot.reply_to(message, "Сори, я не могу отвечать на войсы длиннее 5 минут!")
+            return
+
+        message.text = convert_voice_message_to_text(message)
+        admin_log += "ВОЙС "
+
     # Симулируем эффект набора текста, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "typing")
 
@@ -1613,11 +1628,12 @@ def handle_message(message):
         user.id,
         new_tokens=request_tokens if user_model == DEFAULT_MODEL else None,
         new_premium_tokens=request_tokens if user_model == PREMIUM_MODEL else None,
+        new_whisper_seconds=voice_duration,
         deduct_tokens=True if user.id != ADMIN_ID else False
     )
 
     # Считаем стоимость запроса в центах в зависимости от выбранной модели
-    request_price_cents = request_tokens * current_price_cents
+    request_price_cents = request_tokens * current_price_cents + (voice_duration or 0) * WHISPER_SEC_PRICE_CENTS
 
     response_content = response.choices[0].message.content
 
@@ -1638,7 +1654,7 @@ def handle_message(message):
             send_smart_split_message(bot, message.chat.id, response_content, reply_to_message_id=message.message_id)
 
     # Формируем лог работы для админа
-    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents)
+    admin_log += create_request_report(user, message.chat, request_tokens, request_price_cents, voice_duration)
     print("\n" + admin_log)
 
     # Отправляем лог работы админу в тг
