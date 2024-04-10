@@ -18,7 +18,7 @@ import requests
 
 
 DEFAULT_MODEL = "gpt-3.5-turbo-0125"  # 16k
-PREMIUM_MODEL = "gpt-4-0125-preview"  # 128k tokens context window
+PREMIUM_MODEL = "gpt-4-turbo-2024-04-09"  # 128k tokens context window
 MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
