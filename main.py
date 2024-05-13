@@ -18,13 +18,13 @@ import requests
 
 
 DEFAULT_MODEL = "gpt-3.5-turbo-0125"  # 16k
-PREMIUM_MODEL = "gpt-4-turbo-2024-04-09"  # 128k tokens context window
+PREMIUM_MODEL = "gpt-4o"  # 128k tokens context window
 MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 # Актуальные цены можно взять с сайта https://openai.com/pricing
-PRICE_1K = 0.002  # price per 1k tokens in USD
-PREMIUM_PRICE_1K = 0.02  # price per 1k tokens in USD for premium model
+PRICE_1K = 0.0015  # price per 1k tokens in USD
+PREMIUM_PRICE_1K = 0.015  # price per 1k tokens in USD for premium model
 IMAGE_PRICE = 0.08  # price per generated image in USD
 WHISPER_MIN_PRICE = 0.006  # price per 1 minute of audio transcription in USD
 
