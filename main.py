@@ -333,7 +333,7 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
 
         if deduct_tokens:
             # data[user_id]["balance"] -= new_whisper_seconds * 100
-            data[user_id]["premium_balance"] -= new_whisper_seconds * 5  # 1 минута Виспера - 300 премиум токенов (5 токенов за 1 секунду)
+            data[user_id]["premium_balance"] -= new_whisper_seconds * 6  # минута Виспера - 400 прем токенов (6.666 токенов за 1 секунду), но сейчас скидка 10%
 
     update_json_file(data)
 
