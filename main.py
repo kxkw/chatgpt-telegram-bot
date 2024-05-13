@@ -332,7 +332,8 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
         session_whisper_seconds += new_whisper_seconds
 
         if deduct_tokens:
-            data[user_id]["balance"] -= new_whisper_seconds * 50  # TODO: обновить конвертацию валют. По ценам выходит 1 секунда = 100 токенов, но я пока щедрый
+            # data[user_id]["balance"] -= new_whisper_seconds * 100
+            data[user_id]["premium_balance"] -= new_whisper_seconds * 5  # 1 минута Виспера - 300 премиум токенов (5 токенов за 1 секунду)
 
     update_json_file(data)
 
@@ -1594,6 +1595,12 @@ def handle_message(message):
     # Handler for the voice messages. It will convert voice to text using OpenAI Whisper V2 model
     if message.content_type == "voice":
         voice_duration = message.voice.duration
+
+        # Войсы могут юзать только премиум юзеры
+        # TODO: мб вот эти проверки на баланс завернуть в отдельные ф-и, чтобы в мейне не надо было трогать БД напрямую (smart?)
+        if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
+            bot.reply_to(message, 'Общаться войсами можно только счастливым обладателям премиум токенов!\n\n/balance здесь')
+            return
 
         if voice_duration < 1:
             bot.reply_to(message, "Ты всегда такой шустренький? Попробуй продержаться подольше!")
