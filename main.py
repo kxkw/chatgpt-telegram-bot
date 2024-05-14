@@ -1217,7 +1217,7 @@ def handle_switch_model_command(message):
     if user_model == DEFAULT_MODEL:
         target_model_type = "premium"
         target_model = PREMIUM_MODEL
-        postfix = "(ПРЕМИУМ)\n\nВнимание! Генерация ответа с данной моделью может занимать до двух минут!"
+        postfix = "(ПРЕМИУМ)"
     elif user_model == PREMIUM_MODEL:
         target_model_type = "default"
         target_model = DEFAULT_MODEL
