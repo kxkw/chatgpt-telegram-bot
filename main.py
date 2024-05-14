@@ -18,13 +18,13 @@ import requests
 
 
 DEFAULT_MODEL = "gpt-3.5-turbo-0125"  # 16k
-PREMIUM_MODEL = "gpt-4-turbo-2024-04-09"  # 128k tokens context window
+PREMIUM_MODEL = "gpt-4o"  # 128k tokens context window
 MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 # Актуальные цены можно взять с сайта https://openai.com/pricing
-PRICE_1K = 0.002  # price per 1k tokens in USD
-PREMIUM_PRICE_1K = 0.02  # price per 1k tokens in USD for premium model
+PRICE_1K = 0.0015  # price per 1k tokens in USD
+PREMIUM_PRICE_1K = 0.015  # price per 1k tokens in USD for premium model
 IMAGE_PRICE = 0.08  # price per generated image in USD
 WHISPER_MIN_PRICE = 0.006  # price per 1 minute of audio transcription in USD
 
@@ -332,7 +332,8 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
         session_whisper_seconds += new_whisper_seconds
 
         if deduct_tokens:
-            data[user_id]["balance"] -= new_whisper_seconds * 50  # TODO: обновить конвертацию валют. По ценам выходит 1 секунда = 100 токенов, но я пока щедрый
+            # data[user_id]["balance"] -= new_whisper_seconds * 100
+            data[user_id]["premium_balance"] -= new_whisper_seconds * 6  # минута Виспера - 400 прем токенов (6.666 токенов за 1 секунду), но сейчас скидка 10%
 
     update_json_file(data)
 
@@ -1479,7 +1480,7 @@ def handle_vision_command(message: types.Message):
     }
 
     payload = {
-        "model": "gpt-4-vision-preview",
+        "model": "gpt-4o",
         "messages": [
             {
                 "role": "user",
@@ -1594,6 +1595,12 @@ def handle_message(message):
     # Handler for the voice messages. It will convert voice to text using OpenAI Whisper V2 model
     if message.content_type == "voice":
         voice_duration = message.voice.duration
+
+        # Войсы могут юзать только премиум юзеры
+        # TODO: мб вот эти проверки на баланс завернуть в отдельные ф-и, чтобы в мейне не надо было трогать БД напрямую (smart?)
+        if data[user.id].get("premium_balance") is None or data[user.id]["premium_balance"] <= 0:
+            bot.reply_to(message, 'Общаться войсами можно только счастливым обладателям премиум токенов!\n\n/balance здесь')
+            return
 
         if voice_duration < 1:
             bot.reply_to(message, "Ты всегда такой шустренький? Попробуй продержаться подольше!")
