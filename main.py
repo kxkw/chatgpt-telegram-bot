@@ -1612,7 +1612,11 @@ def handle_message(message):
             bot.reply_to(message, "Сори, я не могу отвечать на войсы длиннее 5 минут!")
             return
 
-        message.text = convert_voice_message_to_text(message)
+        try:
+            message.text = convert_voice_message_to_text(message)
+        except FileNotFoundError as e:
+            print("Внимание: Для работы с войсами необходимо установить FFMPEG!!!\nГолосовой запрос не был обработан.")
+            return
         admin_log += "ВОЙС "
 
     # Симулируем эффект набора текста, пока бот получает ответ
