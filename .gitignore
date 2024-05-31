@@ -3,6 +3,7 @@
 /data-backup.json
 /data-legacy.json
 /todo.py
+/chat_context/
 
 # Unrevisioned files from the project
 /.idea/.gitignore
