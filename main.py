@@ -153,6 +153,48 @@ def generate_image(image_prompt, model="dall-e-3"):
     return response
 
 
+# Function to encode the image
+def encode_image_b64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+
+# Функция, которая получает на вход путь к картинке, декодирует ее в base64, отправляет по API в OpenAI и возвращает ответ
+def get_openai_image_recognition_response(image_path: str, user_request: str, max_output_tokens: int = 1000) -> dict:
+    base64_image = encode_image_b64(image_path)  # Getting the base64 string
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {client.api_key}"
+    }
+
+    payload = {
+        "model": "gpt-4o",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": user_request
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 1000
+    }
+
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    # print(response.status_code)  # 200
+    return response.json()
+
+
 # Function to get all user's referrals
 def get_user_referrals(user_id: int) -> list:
     user_referrals = []
@@ -254,12 +296,6 @@ def format_cents_to_price_string(price: float) -> str:
         return f"{round(price, 2)}¢"
     else:
         return f"${round(price / 100, 2)}"
-
-
-# Function to encode the image
-def encode_image_b64(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
 
 
 # Получает на вход новые данные по пользователю по произведенным запросам, потраченным токенам, премиум токенам и изображениям и добавляет их в базу
@@ -1217,7 +1253,7 @@ def handle_switch_model_command(message):
     if user_model == DEFAULT_MODEL:
         target_model_type = "premium"
         target_model = PREMIUM_MODEL
-        postfix = "(ПРЕМИУМ)\n\nВнимание! Генерация ответа с данной моделью может занимать до двух минут!"
+        postfix = "(ПРЕМИУМ)"
     elif user_model == PREMIUM_MODEL:
         target_model_type = "default"
         target_model = DEFAULT_MODEL
@@ -1471,40 +1507,7 @@ def handle_vision_command(message: types.Message):
     # Симулируем эффект набора текста, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "typing")
 
-    # Getting the base64 string
-    base64_image = encode_image_b64(image_path)
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {client.api_key}"
-    }
-
-    payload = {
-        "model": "gpt-4o",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": user_request
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
-                    }
-                ]
-            }
-        ],
-        "max_tokens": 1000
-    }
-
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-    response = response.json()
-    # print(response.status_code)  # 200
-    # print(response.json())
+    response = get_openai_image_recognition_response(image_path, user_request)
 
     # Vision requests still use old api response format
     request_tokens = response["usage"]["total_tokens"]
@@ -1609,7 +1612,11 @@ def handle_message(message):
             bot.reply_to(message, "Сори, я не могу отвечать на войсы длиннее 5 минут!")
             return
 
-        message.text = convert_voice_message_to_text(message)
+        try:
+            message.text = convert_voice_message_to_text(message)
+        except FileNotFoundError as e:
+            print("Внимание: Для работы с войсами необходимо установить FFMPEG!!!\nГолосовой запрос не был обработан.")
+            return
         admin_log += "ВОЙС "
 
     # Симулируем эффект набора текста, пока бот получает ответ
