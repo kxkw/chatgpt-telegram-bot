@@ -693,6 +693,11 @@ def handle_data_command(message):
     else:
         whisper_string = ""
 
+    if "max_context_length" in data[target_user_id]:
+        extended_context_string = f"max context length: {data[target_user_id]['max_context_length']}\n"
+    else:
+        extended_context_string = ""
+
     # Если юзер был успешно найден, то формируем здесь сообщение с его статой
     user_data_string = f"id {target_user_id}\n" \
                        f"{data[target_user_id]['name']} " \
@@ -703,6 +708,7 @@ def handle_data_command(message):
                        f"{premium_string}" \
                        f"{images_string}" \
                        f"{whisper_string}" \
+                       f"{extended_context_string}" \
                        f"last request: {data[target_user_id]['lastdate']}\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
