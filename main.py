@@ -36,6 +36,10 @@ REFERRAL_BONUS = 20000  # bonus for inviting a new user
 FAVOR_AMOUNT = 30000  # amount of tokens per granted favor
 FAVOR_MIN_LIMIT = 10000  # minimum balance to ask for a favor
 
+# Позволяет боту "помнить" поледние n символов диалога с пользователем за счет увеличенного расхода токенов (округляется вниз до целого сообщения)
+DEFAULT_CHAT_CONTEXT_LENGTH = 5000  # default max length of chat context in characters.
+CHAT_CONTEXT_FOLDER = "chat_context/"
+
 # load .env file with secrets
 load_dotenv()
 
@@ -123,11 +127,92 @@ def get_user_prompt(user_id: int) -> str:
         return str(data[user_id]["prompt"])
 
 
+"""БЕТА версия расширенного контекста"""
+
+
+# Function to get the user's chat history from the file named by his user_id
+# TODO: мб изменить и переименовать в именно доставание истории из файла (и вызывать в следующей ф-и с обновлением контекста)
+def get_user_chat_context(user_id: int) -> list:
+    file_path = f"{CHAT_CONTEXT_FOLDER}{user_id}.json"
+
+    if user_id not in chat_context or chat_context[user_id] is None:
+        if os.path.isfile(file_path):
+            with open(file_path, "r", encoding='utf-8') as file:
+                chat_context[user_id] = json.load(file)
+        else:
+            chat_context[user_id] = []
+    return chat_context[user_id]
+
+
+# Function to update the user's chat history in specific user file named by user_id
+def update_user_chat_context(user_id: int, messages: list = None, save_to_file: bool = True) -> None:
+    if user_id not in chat_context or chat_context[user_id] is None:
+        chat_context[user_id] = []
+
+    if messages is not None:
+        chat_context[user_id].extend(messages)
+
+    if save_to_file:
+        with open(f"{CHAT_CONTEXT_FOLDER}{user_id}.json", "w", encoding='utf-8') as file:
+            json.dump(chat_context[user_id], file, ensure_ascii=False, indent=4)
+
+
+# Function to trim the user chat context to specific character length. Remove the oldest messages
+def trim_user_chat_context(user_id: int, max_length: int) -> None:
+    if user_id in chat_context:
+        total_chars = sum(len(message['content']) for message in chat_context[user_id])
+
+        while total_chars > max_length:
+            # print(f"Trimming chat context for user {user_id}. Current length: {total_chars}")
+            removed_message_length = len(chat_context[user_id].pop(0)['content'])
+            total_chars -= removed_message_length
+        # print(f"Chat context for user {user_id} has been trimmed to {total_chars} chars.")
+
+
+def is_user_extended_chat_context_enabled(user_id: int) -> bool:
+    """
+    This function checks if the user's extended chat context is enabled. Only for registered users.
+
+    :param user_id: The user's ID
+    :type user_id: int
+
+    :return: True if the extended chat context is enabled, False otherwise
+    :rtype: bool
+    """
+    # return data[user_id].get("is_chat_context_enabled", False)
+    return "max_context_length" in data[user_id]
+
+
+# Ф-я для получения максимальной длины контекста для пользовалятеля
+def get_user_max_chat_context_length(user_id: int) -> int:
+    # берем информацию из бд, если поле есть у юзера. Иначе возвращаем дефолтное значение
+    # print(data[user_id].get("max_context_length", DEFAULT_CHAT_CONTEXT_LENGTH))
+    return data[user_id].get("max_context_length", DEFAULT_CHAT_CONTEXT_LENGTH)
+
+
+# Функция для очищения контекста диалога юзера
+def delete_user_chat_context(user_id: int) -> None:
+    # Очищаем контекст из памяти
+    if user_id in chat_context:
+        chat_context.pop(user_id)
+
+    # Удаляем файл с контекстом юзера с диска
+    file_path = f"{CHAT_CONTEXT_FOLDER}{user_id}.json"
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+
+
+"""КОНЕЦ БЕТА ВЕРСИИ"""
+
+
 # Function to call the OpenAI API and get the response
-def get_chatgpt_response(user_request: str, lang_model=DEFAULT_MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT):
+def get_chatgpt_response(user_request: str, lang_model=DEFAULT_MODEL, prev_answer=None, system_prompt=DEFAULT_SYSTEM_PROMPT,
+                         extended_context_messages=None):
     messages = [{"role": "system", "content": system_prompt}]
 
-    if prev_answer is not None:
+    if extended_context_messages is not None:  # Если включен режим длинного контекста TODO: нужна даделька
+        messages.extend(extended_context_messages)
+    elif prev_answer is not None:  # Если выключен режим длинного контекста и сделан ответ на конкретное сообщение
         messages.extend([{"role": "assistant", "content": prev_answer},
                          {"role": "user", "content": user_request}])
         # print("\nЗапрос с контекстом 🤩")
@@ -536,6 +621,9 @@ else:
     # Create the file with default values
     update_json_file(data)
 
+# Папка для хранения расширенного контекста, если ее еще нет
+os.makedirs(CHAT_CONTEXT_FOLDER, exist_ok=True)
+chat_context = {}
 
 # Calculate the price per token in cents
 PRICE_CENTS = PRICE_1K / 10
@@ -1310,6 +1398,58 @@ def handle_ask_favor_command(message):
         bot.pin_chat_message(ADMIN_ID, admin_message.message_id, disable_notification=True)
 
 
+@bot.message_handler(commands=["extended_context", "context", "ec", "remember", "erase_context", "delete_context", "clear_history", "dc", "ch"])  # /new_chat запрогать
+def handle_extended_context_command(message):
+    user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
+
+    if not is_user_exists(user_id):
+        return
+
+    command = extract_command(message.text)
+    max_context = extract_arguments(message.text)
+
+    if command in ["erase_context", "delete_context", "clear_history", "dc", "ch"]:
+        max_context = 0
+    elif max_context == "":
+        bot.reply_to(message, "Укажите объем символов, который вы хотите хранить в \"памяти\" бота. Чем выше это значение, тем больше токенов будет "
+                              "расходовать каждый запрос, но каждый ответ будет осмысленнее, органичнее и с учетом истории диалога."
+                              "\n\nПример: `/context 5000`", parse_mode="Markdown")  # TODO: Обновить информационное сообщение
+        return
+    else:
+        try:
+            max_context = int(max_context)
+            if max_context < 0:
+                raise ValueError
+        except ValueError:
+            bot.reply_to(message, "Укажите целое положительное число символов для установки максимальной длины контекста после команды  \n\nПример: `/context 5000`")
+            return
+
+    if max_context == 0:
+        if data[user_id].get("max_context_length"):  # if is_user_extended_chat_context_enabled(user_id):
+            delete_user_chat_context(user_id)
+            del data[user_id]["max_context_length"]
+            update_json_file(data)
+
+            bot.reply_to(message, "Расширенный контекст отключен, история диалога очищена. \nРаботаем в стандартном режиме")
+        else:
+            bot.reply_to(message, "Мы уже работаем в стандартном режиме!")
+    elif max_context > 50000:
+        bot.reply_to(message, "Воу, полегче! Тебе такое не по карману, попробуй поумерить свой пыл.")
+        return
+    else:
+        # data[user_id]["is_chat_context_enabled"] = True
+        data[user_id]["max_context_length"] = max_context
+        update_json_file(data)
+
+        bot.reply_to(message, f"Максимальная длина контекста установлена на {max_context} символов. \n\n"
+                              f"Напоминание: теперь каждый запрос может расходовать до {max_context} токенов.\n"
+                              f"Отключить расширенный контекст можно командами: \n`/delete_context` или `/dc` \n`/clear_history` или `/ch` \n`/context 0`",
+                     parse_mode="Markdown")
+
+
 # Favor callback data handler
 @bot.callback_query_handler(func=lambda call: True)
 def handle_favor_callback(call):
@@ -1622,13 +1762,31 @@ def handle_message(message):
     # Симулируем эффект набора текста, пока бот получает ответ
     bot.send_chat_action(message.chat.id, "typing")
 
+    is_user_chat_context_enabled: bool = is_user_extended_chat_context_enabled(user.id)
+    if is_user_chat_context_enabled:
+        # загружаем историю чата юзера из файла в оперативку, если она есть
+        get_user_chat_context(user.id)
+        # print(f"Длина контекста: {len(get_user_chat_context(user.id))}")
+
+        # Сокращаем историю чата до максимальной длины (округление вниз до целого сообщения)
+        trim_user_chat_context(user.id, get_user_max_chat_context_length(user.id))
+        # print(f"Длина после трима: {len(get_user_chat_context(user.id))}")
+
+        # Добавляем сообщение пользователя в расширенный контекст
+        update_user_chat_context(user.id, [{"role": "user", "content": message.text}], save_to_file=False)
+        # print(f"Длина после с новым запросом: {len(get_user_chat_context(user.id))}")
+
+        admin_log += "EC "
+
     # Send the user's message to OpenAI API and get the response
     # Если юзер написал запрос в ответ на сообщение бота, то добавляем предыдущий ответ бота в запрос
-    try:
-        if message.reply_to_message is not None:
+    try:  # если есть контекст сообщения, то работаем с ними, иначе обычный запрос как раньше
+        if is_user_chat_context_enabled:
+            response = get_chatgpt_response(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id),
+                                            extended_context_messages=get_user_chat_context(user.id))
+        elif message.reply_to_message is not None:
             prev_answer = message.reply_to_message.caption or message.reply_to_message.text
-            response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=prev_answer,
-                                            system_prompt=get_user_prompt(user.id))
+            response = get_chatgpt_response(message.text, lang_model=user_model, prev_answer=prev_answer, system_prompt=get_user_prompt(user.id))
         else:
             response = get_chatgpt_response(message.text, lang_model=user_model, system_prompt=get_user_prompt(user.id))
     except openai.RateLimitError:
@@ -1636,7 +1794,7 @@ def handle_message(message):
         bot.reply_to(message, "Превышен лимит запросов. Пожалуйста, повторите попытку позже")
         return
     except Exception as e:
-        print("\nОшибка при запросе по API, OpenAI сбоит!")
+        print("\nОшибка при запросе по API, OpenAI сбоит! (или же вы не привязали карту на сайте OpenAI)")
         bot.reply_to(message, "Произошла ошибка на серверах OpenAI.\n"
                               "Пожалуйста, попробуйте еще раз или повторите запрос позже")
         print(e)
@@ -1657,6 +1815,10 @@ def handle_message(message):
     request_price_cents = request_tokens * current_price_cents + (voice_duration or 0) * WHISPER_SEC_PRICE_CENTS
 
     response_content = response.choices[0].message.content
+
+    if is_user_chat_context_enabled:
+        update_user_chat_context(user.id, [{"role": "assistant", "content": response_content}])
+        # print(f"Длина после ответа: {len(get_user_chat_context(user.id))}")
 
     error_text = f"\nОшибка отправки из-за форматирования, отправляю без него.\nТекст ошибки: "
     # Сейчас будет жесткий код
