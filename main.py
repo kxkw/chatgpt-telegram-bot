@@ -1465,8 +1465,9 @@ def handle_extended_context_command(message):
 def handle_favor_callback(call):
     button, user_id = call.data.split("$")
 
-    if call.from_user.id != ADMIN_ID:
+    if not is_user_admin(call.from_user.id):
         return
+
     elif not user_id.isdigit():
         bot.answer_callback_query(call.id, "Второй аргумент должен быть числом!\n\ncallback_data: " + call.data, True)
         return
