@@ -65,6 +65,10 @@ DEFAULT_NEW_USER_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE
 """======================FUNCTIONS======================="""
 
 
+def is_user_admin(user_id: int) -> bool:  # TODO: вставить везде, где повторяются ручные проверки на админа
+    return True if user_id == ADMIN_ID else False
+
+
 # Function to check if the user is in the data file
 def is_user_exists(user_id: int) -> bool:
     if user_id in data:
