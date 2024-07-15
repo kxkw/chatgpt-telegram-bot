@@ -1459,21 +1459,18 @@ def handle_extended_context_command(message):
 # Favor callback data handler
 @bot.callback_query_handler(func=lambda call: True)
 def handle_favor_callback(call):
-    call_data_list: list = call.data.split("$")
+    button, user_id = call.data.split("$")
 
     if call.from_user.id != ADMIN_ID:
         return
-    elif len(call_data_list) != 2:
-        bot.answer_callback_query(call.id, "Должно быть два аргумента!\n\ncallback_data: " + call.data, True)
-        return
-    elif not call_data_list[1].isdigit():
+    elif not user_id.isdigit():
         bot.answer_callback_query(call.id, "Второй аргумент должен быть числом!\n\ncallback_data: " + call.data, True)
         return
 
-    call_data_list[1] = int(call_data_list[1])
-    user = data[call_data_list[1]]
+    user_id = int(user_id)
+    user = data[user_id]
 
-    if call_data_list[0] == 'favor_yes':
+    if button == 'favor_yes':
         bot.answer_callback_query(call.id, "Заявка принята")
         bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
 
@@ -1488,18 +1485,18 @@ def handle_favor_callback(call):
             del user["active_favor_request"]
         update_json_file(data)
 
-        bot.send_message(call_data_list[1], f"Ваши мольбы были услышаны! 🙏\n\n"
-                                            f"Вам начислено {FAVOR_AMOUNT} токенов!\n"
-                                            f"Текущий баланс: {data[int(call_data_list[1])]['balance']}")
+        bot.send_message(user_id, f"Ваши мольбы были услышаны! 🙏\n\n"
+                                  f"Вам начислено {FAVOR_AMOUNT} токенов!\n"
+                                  f"Текущий баланс: {user['balance']}")
 
-        edited_admin_message = f"Заявка от {user['name']} {user['username']} {call_data_list[1]}\n\n" \
+        edited_admin_message = f"Заявка от {user['name']} {user['username']} {user_id}\n\n" \
                                f"requests: {user['requests']}\n" \
                                f"tokens: {user['tokens']}\n" \
                                f"balance: {user['balance']}\n\n" \
                                f"✅ Оформлено! ✅"
         bot.edit_message_text(chat_id=ADMIN_ID, message_id=call.message.message_id, text=edited_admin_message)
 
-    elif call_data_list[0] == 'favor_no':
+    elif button == 'favor_no':
         bot.answer_callback_query(call.id, "Заявка отклонена")
         bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
 
@@ -1507,9 +1504,9 @@ def handle_favor_callback(call):
             del user["active_favor_request"]
         update_json_file(data)
 
-        bot.send_message(call_data_list[1], "Вам было отказано в просьбе, попробуйте позже!")
+        bot.send_message(user_id, "Вам было отказано в просьбе, попробуйте позже!")
 
-        edited_admin_message = f"Заявка от {user['name']} {user['username']} {call_data_list[1]}\n\n" \
+        edited_admin_message = f"Заявка от {user['name']} {user['username']} {user_id}\n\n" \
                                f"requests: {user['requests']}\n" \
                                f"tokens: {user['tokens']}\n" \
                                f"balance: {user['balance']}\n\n" \
