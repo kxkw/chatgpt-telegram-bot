@@ -17,8 +17,8 @@ import base64
 import requests
 
 
-DEFAULT_MODEL = "gpt-3.5-turbo-0125"  # 16k
-PREMIUM_MODEL = "gpt-4o"  # 128k tokens context window
+DEFAULT_MODEL = "gpt-4o-mini"  # 128k input, 16k output tokens context window
+PREMIUM_MODEL = "gpt-4o"  # 128k
 MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including input tokens)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
