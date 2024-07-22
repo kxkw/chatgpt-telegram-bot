@@ -9,6 +9,7 @@ import json
 import os
 from datetime import datetime, timedelta
 import time
+import csv
 
 from pydub import AudioSegment
 from telebot.util import extract_arguments, extract_command
@@ -53,9 +54,10 @@ bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 
-# File with users and global token usage data
+# File with users and global token usage data and file with info on all payments by users
 DATAFILE = "data.json"
 BACKUPFILE = "data-backup.json"
+PAYMENTS_FILE = "payments.csv"
 
 # Default values for new users, who are not in the data file
 DEFAULT_NEW_USER_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
@@ -104,6 +106,35 @@ def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
 def update_json_file(new_data, file_name=DATAFILE) -> None:
     with open(file_name, "w", encoding='utf-8') as file:
         json.dump(new_data, file, ensure_ascii=False, indent=4)
+
+
+# Function to write payment data to CSV file
+def write_payment_to_csv(payment_data: dict) -> None:
+    headers = ['transaction_id', 'user_id', 'payload', 'stars_amount', 'date']
+
+    is_file_exists = os.path.isfile(PAYMENTS_FILE)
+
+    with open(PAYMENTS_FILE, mode='a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+
+        # Write the header only if the file doesn't exist
+        if not is_file_exists:
+            writer.writeheader()
+
+        # Write the payment data
+        writer.writerow(payment_data)
+
+
+# Function to create a new payment entry
+def create_payment(transaction_id: str, user_id: int, payload: str, amount: int) -> None:
+    payment_data = {
+        'transaction_id': transaction_id,
+        'user_id': user_id,
+        'payload': payload,
+        'stars_amount': amount,
+        'date': datetime.now().strftime(DATE_FORMAT)
+    }
+    write_payment_to_csv(payment_data)
 
 
 # Function to get user_id by username
