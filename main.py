@@ -29,6 +29,8 @@ PREMIUM_PRICE_1K = 0.015  # price per 1k tokens in USD for premium model
 IMAGE_PRICE = 0.08  # price per generated image in USD
 WHISPER_MIN_PRICE = 0.006  # price per 1 minute of audio transcription in USD
 
+STAR_PRICE = 0.013  # how much admin gets in USD for each Telegram Star
+
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
 
 NEW_USER_BALANCE = 30000  # balance for new users
@@ -669,6 +671,8 @@ PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
 IMAGE_PRICE_CENTS = IMAGE_PRICE * 100
 WHISPER_SEC_PRICE_CENTS = WHISPER_MIN_PRICE / 60 * 100
 
+STAR_PRICE_CENTS = STAR_PRICE * 100
+
 # Session token and request counters
 session_request_counter, session_tokens, premium_session_tokens, session_images, session_whisper_seconds = 0, 0, 0, 0, 0  # TODO: мб бахнуть класс session
 
@@ -747,12 +751,20 @@ def handle_data_command(message):
                        f"{images_string}" \
                        f"{whisper_string}" \
                        f"{extended_context_string}" \
-                       f"last request: {data[target_user_id]['lastdate']}\n"
+                       f"last request: {data[target_user_id]['lastdate']}\n\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
     user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0),
                                      data[target_user_id].get('images', 0), data[target_user_id].get('whisper_seconds', 0))
-    user_data_string += f"user cost: {format_cents_to_price_string(user_cost_cents)}\n\n"
+    user_data_string += f"user cost: {format_cents_to_price_string(user_cost_cents)}\n"
+
+    if "payments" in data[target_user_id]:
+        user_stars_spent: int = data[target_user_id].get("stars_spent", 0)
+        user_profit_cents = user_stars_spent * STAR_PRICE_CENTS
+        user_data_string += f"payments: {data[target_user_id]['payments']}\n" \
+                            f"stars spent: ⭐️{user_stars_spent}\n" \
+                            f"profit: {format_cents_to_price_string(user_profit_cents)}\n" \
+                            f"net profit: {format_cents_to_price_string(user_profit_cents - user_cost_cents)}\n\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
     if "favors" in data[target_user_id]:
@@ -772,7 +784,7 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, user_data_string)
         return
 
-    user_data_string += f"{len(user_referrals_list)} invited users:\n"
+    user_data_string += f"\n{len(user_referrals_list)} invited users:\n"
     for ref in user_referrals_list:
         user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
 
