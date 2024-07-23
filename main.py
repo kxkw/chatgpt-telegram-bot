@@ -386,6 +386,10 @@ def format_cents_to_price_string(price: float) -> str:
         return f"${round(price / 100, 2)}"
 
 
+def set_user_current_lastdate(user_id: int) -> None:
+    data[user_id]["lastdate"] = (datetime.now()).strftime(DATE_FORMAT)
+
+
 # Получает на вход новые данные по пользователю по произведенным запросам, потраченным токенам, премиум токенам и изображениям и добавляет их в базу
 # Если deduct_tokens = False, то токены не будут списаны с баланса (например, при запросах администратора)
 # Вызывать, только если у пользователя положительный баланс используемых токенов!
@@ -424,7 +428,7 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
     data["global"]["requests"] += new_requests
     session_request_counter += new_requests
 
-    data[user_id]["lastdate"] = (datetime.now()).strftime(DATE_FORMAT)
+    set_user_current_lastdate(user_id)
 
     if new_tokens:
         data[user_id]["tokens"] += new_tokens
