@@ -29,7 +29,6 @@ IMAGE_PRICE = 0.08  # price per generated image in USD
 WHISPER_MIN_PRICE = 0.006  # price per 1 minute of audio transcription in USD
 
 DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
-UTC_HOURS_DELTA = 3  # time difference between server and local time in hours (UTC +3)
 
 NEW_USER_BALANCE = 30000  # balance for new users
 REFERRAL_BONUS = 20000  # bonus for inviting a new user
@@ -296,7 +295,7 @@ def get_user_referrals(user_id: int) -> list:
 
 def get_recent_active_users(days: int) -> list:
     recent_active_users = []
-    current_date = datetime.now() + timedelta(hours=UTC_HOURS_DELTA)
+    current_date = datetime.now()
 
     for user_id, user_data in data.items():
         if user_id == "global":
@@ -425,7 +424,7 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
     data["global"]["requests"] += new_requests
     session_request_counter += new_requests
 
-    data[user_id]["lastdate"] = (datetime.now() + timedelta(hours=UTC_HOURS_DELTA)).strftime(DATE_FORMAT)
+    data[user_id]["lastdate"] = (datetime.now()).strftime(DATE_FORMAT)
 
     if new_tokens:
         data[user_id]["tokens"] += new_tokens
