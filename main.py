@@ -1276,7 +1276,7 @@ def handle_stats_command(message):
         referrer = user_data["ref_id"]
         user_data_string += f"\nВас пригласил: {data[referrer]['name']} {data[referrer]['username']}\n\n"
 
-    bot.reply_to(message, user_data_string)
+    send_smart_split_message(bot, message.chat.id, user_data_string, reply_to_message_id=message.id)
 
 
 # Define the handler for the /prompt command
