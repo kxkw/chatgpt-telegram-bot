@@ -386,6 +386,27 @@ def format_cents_to_price_string(price: float) -> str:
         return f"${round(price / 100, 2)}"
 
 
+def convert_k_to_int(notation_string: str) -> int:
+    """
+    Converts a string notation that uses 'k' as multipliers into an integer.
+
+    In the notation, each 'k' represents a multiplier of 1000. For example:
+
+    - "1k" will become 1000
+    - "10k" will become 10000
+    - "1kk" will become 1000000
+
+    :param notation_string: The string containing the notation with 'k'
+    :type notation_string: str
+
+    :return: The integer value after converting the notation
+    :rtype: int
+    """
+    k_count: int = notation_string.count('k')
+    number: int = int(notation_string.replace('k', ''))
+    return number * 1000**k_count
+
+
 def set_user_current_lastdate(user_id: int) -> None:
     data[user_id]["lastdate"] = (datetime.now()).strftime(DATE_FORMAT)
 
