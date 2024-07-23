@@ -380,7 +380,7 @@ def format_cents_to_price_string(price: float) -> str:
     :return: The formatted price string
     :rtype: str
     """
-    if price < 100:
+    if 100 > price > -100:
         return f"{round(price, 2)}¢"
     else:
         return f"${round(price / 100, 2)}"
