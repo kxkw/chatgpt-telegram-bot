@@ -870,7 +870,7 @@ def handle_refill_command(message):
 
     try:
         args = extract_arguments(message.text).split()
-        amount = int(args[1])
+        amount = convert_k_to_int(args[1])
     except ValueError:
         bot.send_message(ADMIN_ID, wrong_input_string, parse_mode="MARKDOWN")
         return
