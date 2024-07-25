@@ -1200,10 +1200,11 @@ def handle_start_command(message):
         return
 
     welcome_string = f"{user.first_name}, с подключением 🤝\n\n" \
-                     f"На твой баланс зачислено {NEW_USER_BALANCE//1000}к токенов 🤑\n\n" \
-                     f"Полезные команды:\n/help - список команд\n/balance - баланс токенов\n" \
-                     f"/stats - статистика запросов\n/prompt - установить системный промпт\n\n" \
-                     f"/invite или /ref - пригласить друга и получить бонус 🎁"
+                     f"На твой баланс зачислено {NEW_USER_BALANCE} токенов! 🤑\n\n" \
+                     f"Просто напиши любой интересующий тебя вопрос и начнется магия ✨\n\n\n" \
+                     f"Полезные команды:\n/help - полный список команд\n/balance - баланс токенов\n" \
+                     f"/stats - моя статистика запросов\n/prompt - выбрать стиль ответов/персонажа для общения\n\n" \
+                     f"/invite - пригласить друга и получить бонус 🎁"
     bot.send_message(message.chat.id, welcome_string)
 
     new_referral_string = ""
@@ -1218,7 +1219,10 @@ def handle_start_command(message):
         data[referrer]["balance"] += REFERRAL_BONUS
         ref_notification_string = f"Ого, по твоей ссылке присоединился 🤩{user.full_name}🤩\n\n" \
                                   f"Это заслуживает лайка и +{str(REFERRAL_BONUS)} токенов на счет! 🎉"
-        bot.send_message(referrer, ref_notification_string)
+        try:
+            bot.send_message(referrer, ref_notification_string)
+        except telebot.apihelper.ApiTelegramException as e:
+            pass  # Если пригласивший чел уже заблочил бота, значит ничего ему не отправляем и работаем дальше. Иначе была бы ошибка.
 
         new_referral_string = f"{data[referrer]['name']} {data[referrer]['username']} пригласил {user.full_name} 🤝\n"
     else:
