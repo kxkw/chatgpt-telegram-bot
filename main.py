@@ -59,6 +59,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID"))
 DATAFILE = "data.json"
 BACKUPFILE = "data-backup.json"
 PAYMENTS_FILE = "payments.csv"
+REQUESTS_FILE = "requests.csv"
 
 # Default values for new users, who are not in the data file
 DEFAULT_NEW_USER_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
@@ -120,6 +121,31 @@ def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
 def update_json_file(new_data, file_name=DATAFILE) -> None:
     with open(file_name, "w", encoding='utf-8') as file:
         json.dump(new_data, file, ensure_ascii=False, indent=4)
+
+
+# TODO: объединить с функцией `write_payment_to_csv()`, сейчас я усталь сори, пора спатеньки
+def write_request_data_to_csv(user_id: int, model_type: str, input_tokens, output_tokens: int) -> None:
+    headers = ['user_id', 'model_type', 'input_tokens', 'output_tokens', 'date']
+
+    is_file_exists = os.path.isfile(REQUESTS_FILE)
+
+    request_data: dict = {
+        'user_id': user_id,
+        'model_type': model_type,  # использованная модель: default, premium или image
+        'input_tokens': input_tokens,  # промпт токены (дешевле)
+        'output_tokens': output_tokens,  # комплишн токены (дороже)
+        'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # кастомный дейт формат
+    }
+
+    with open(REQUESTS_FILE, mode='a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+
+        # Write the header only if the file doesn't exist
+        if not is_file_exists:
+            writer.writeheader()
+
+        # Write the payment data
+        writer.writerow(request_data)
 
 
 # Function to write payment data to CSV file
@@ -1658,6 +1684,8 @@ def handle_imagine_command(message):
         bot.send_message(ADMIN_ID, "Произошла ошибка при генерации изображения 😵\n\n" + str(e))
         return
 
+    write_request_data_to_csv(user.id, 'img', '', 1)
+
     image_url = response.data[0].url
     # revised_prompt = '<span class="tg-spoiler">' + response.data[0].revised_prompt + '</span>'
 
@@ -1747,6 +1775,13 @@ def handle_vision_command(message: types.Message):
 
     # delete image file
     os.remove(image_path)
+
+    write_request_data_to_csv(
+        user_id=user.id,
+        model_type='prem',
+        input_tokens=response["usage"]["prompt_tokens"],
+        output_tokens=response["usage"]["completion_tokens"]
+    )
 
     update_global_user_data(
         user.id,
@@ -1894,6 +1929,13 @@ def handle_message(message):
 
     # Получаем стоимость запроса по АПИ в токенах
     request_tokens = response.usage.total_tokens  # same: response.usage.total_tokens
+
+    write_request_data_to_csv(
+        user_id=user.id,
+        model_type='def' if user_model == DEFAULT_MODEL else 'prem',
+        input_tokens=response.usage.prompt_tokens,
+        output_tokens=response.usage.completion_tokens
+    )
 
     update_global_user_data(
         user.id,
