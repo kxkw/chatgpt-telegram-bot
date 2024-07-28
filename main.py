@@ -275,7 +275,7 @@ def get_openai_image_recognition_response(image_path: str, user_request: str, ma
                 ]
             }
         ],
-        "max_tokens": 1000
+        "max_tokens": 2000
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
