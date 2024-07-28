@@ -1,6 +1,7 @@
 /.env
 /data.json
 /payments.csv
+/requests.csv
 /data-backup.json
 /data-legacy.json
 /todo.py
