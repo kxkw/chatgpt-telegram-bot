@@ -1645,6 +1645,11 @@ def handle_imagine_command(message):
         print(error_text + str(e))
         return
 
+    try:
+        bot.send_document(user.id, document=image_url)  # кидаем копию картинки файлом юзеру в личку
+    except telebot.apihelper.ApiTelegramException as e:
+        pass
+
     # Удалияем сообщение о генерации изображения
     try:
         bot.delete_message(wait_message.chat.id, wait_message.message_id)
