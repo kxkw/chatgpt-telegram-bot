@@ -1331,6 +1331,45 @@ def handle_stats_command(message):
     send_smart_split_message(bot, message.chat.id, user_data_string, reply_to_message_id=message.id)
 
 
+# Define the handler for the /feedback command
+@bot.message_handler(commands=["feedback", "fb", "support"])
+def handle_feedback_command(message):
+    user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
+
+    if not is_user_exists(user_id):
+        bot.reply_to(message, "Мы еще не знакомы! Нажмите /start")
+        return
+
+    feedback_text = extract_arguments(message.text)
+    if len(feedback_text) > 3000:
+        bot.reply_to(message, "Многобукаф, не осилил. Давай сократим до 3000 символов, заранее спасибо")
+        return
+    if not feedback_text:
+        bot.reply_to(message, "Напиши свой отзыв или пожелания через пробел сразу после команды /feedback\n\nПример:\n`/feedback все супер, бро!`\n\nP.S. Ходят слухи, что иногда за фидбэк прилетают бесплатные токены 😇", parse_mode='Markdown')
+        return
+
+    if user_id == ADMIN_ID:
+        bot.reply_to(message, "Пошутили и хватит, бро! Не забивай мемпул")
+        return
+
+    username: str = f" @{message.from_user.username}" if message.from_user.username else ""
+    
+    # Send feedback to admin
+    feedback_message = f"Фидбэк от {message.from_user.full_name}{username} {user_id}:\n\n{feedback_text}"
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("От души", callback_data=f"feedback@thank:{user_id}"))
+    markup.add(types.InlineKeyboardButton("Скип", callback_data="feedback@ignore"))
+
+    # Send and pin the feedback message to admin
+    sent_message = bot.send_message(ADMIN_ID, feedback_message, reply_markup=markup)
+    bot.pin_chat_message(ADMIN_ID, sent_message.message_id)
+    bot.reply_to(message, "Ваш фидбэк успешно отправлен, спасибо!")
+
+
+
 # Define the handler for the /prompt command
 @bot.message_handler(commands=["p", "prompt"])
 def handle_prompt_command(message):
@@ -1927,6 +1966,26 @@ def handle_message(message):
     # Отправляем лог работы админу в тг
     if message.chat.id != ADMIN_ID:
         bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("feedback@"))
+def handle_feedback_response(call):
+    button: str = call.data.replace("feedback@", "")  # Extract the button pressed
+
+    if button.startswith("thank:"):
+        user_id = int(button.split(":")[1])
+
+        data[user_id]["balance"] += 10000  # Award 10k tokens
+        update_json_file(data)
+
+        bot.answer_callback_query(call.id, text="Хороший отзыв, спасибо челу!")
+        try:
+            bot.send_message(user_id, "Ваш отзыв получил лайк от админа! Ловите бонус +10000 токенов 😊")
+        except telebot.apihelper.ApiTelegramException:  # Handle the case where the user has blocked the bot
+            pass
+    elif button == "ignore":
+        bot.answer_callback_query(call.id, text="Отзыв забыто.")
+    bot.delete_message(call.message.chat.id, call.message.message_id)
 
 
 # Handler only for bot pinned messages
