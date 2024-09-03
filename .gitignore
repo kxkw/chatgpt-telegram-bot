@@ -1,5 +1,6 @@
 /.env
 /data.json
+/prices.json
 /payments.csv
 /requests.csv
 /data-backup.json
