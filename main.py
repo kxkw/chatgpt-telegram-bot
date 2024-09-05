@@ -1517,8 +1517,8 @@ def handle_ask_favor_command(message):
 
         # add two buttons to the message
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text='Да', callback_data='favor_yes$' + str(user.id)),
-                   types.InlineKeyboardButton(text='Нет', callback_data='favor_no$' + str(user.id)))
+        markup.add(types.InlineKeyboardButton(text='Да', callback_data=f'favor@yes:{user.id}'),
+                   types.InlineKeyboardButton(text='Нет', callback_data=f'favor@no:{user.id}'))
 
         admin_message = bot.send_message(ADMIN_ID, admin_invoice_string, reply_markup=markup)
         bot.pin_chat_message(ADMIN_ID, admin_message.message_id, disable_notification=True)
@@ -1577,29 +1577,25 @@ def handle_extended_context_command(message):
 
 
 # Favor callback data handler
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(func=lambda call: 'favor@' in call.data)
 def handle_favor_callback(call):
-    button, user_id = call.data.split("$")
+    button, user_id = call.data.replace('favor@', '').split(':')
 
     if not is_user_admin(call.from_user.id):
         return
 
-    elif not user_id.isdigit():
+    if not user_id.isdigit():
         bot.answer_callback_query(call.id, "Второй аргумент должен быть числом!\n\ncallback_data: " + call.data, True)
         return
 
     user_id = int(user_id)
     user = data[user_id]
 
-    if button == 'favor_yes':
+    if button == 'yes':
         bot.answer_callback_query(call.id, "Заявка принята")
         bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
 
-        if "favors" in user:
-            user["favors"] += 1
-        else:
-            user["favors"] = 1
-
+        user["favors"] = user.get("favors", 0) + 1
         user["balance"] += FAVOR_AMOUNT
 
         if user.get("active_favor_request"):
@@ -1617,7 +1613,7 @@ def handle_favor_callback(call):
                                f"✅ Оформлено! ✅"
         bot.edit_message_text(chat_id=ADMIN_ID, message_id=call.message.message_id, text=edited_admin_message)
 
-    elif button == 'favor_no':
+    elif button == 'no':
         bot.answer_callback_query(call.id, "Заявка отклонена")
         bot.unpin_chat_message(ADMIN_ID, call.message.message_id)
 
