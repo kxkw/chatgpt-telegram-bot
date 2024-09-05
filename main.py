@@ -112,16 +112,16 @@ def update_json_file(new_data, file_name=DATAFILE) -> None:
 
 
 def write_request_data_to_csv(user_id: int, model_type: str, input_tokens, output_tokens: int) -> None:
-    headers = ['user_id', 'model_type', 'input_tokens', 'output_tokens', 'date']
+    headers = ['user_id', 'model_type', 'input_tokens', 'output_tokens', 'timestamp']
 
     is_file_exists = os.path.isfile(REQUESTS_FILE)
 
     request_data: dict = {
         'user_id': user_id,
-        'model_type': model_type,  # использованная модель: default, premium или image
+        'model_type': model_type,  # использованная модель: def - default, prem - premium или img - image
         'input_tokens': input_tokens,  # промпт токены (дешевле)
         'output_tokens': output_tokens,  # комплишн токены (дороже)
-        'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # кастомный дейт формат
+        'timestamp': int(datetime.now().timestamp())  # таймстемп без милисекунд, так на выходе файл будет занимать меньше памяти
     }
 
     with open(REQUESTS_FILE, mode='a', newline='', encoding='utf-8') as csvfile:
