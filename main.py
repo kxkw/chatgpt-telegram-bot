@@ -1372,6 +1372,25 @@ def handle_feedback_command(message):
     bot.reply_to(message, "Ваш фидбэк успешно отправлен, спасибо!")
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("feedback@"))
+def handle_feedback_response(call):
+    button: str = call.data.replace("feedback@", "")  # Extract the button pressed
+
+    if button.startswith("thank:"):
+        user_id = int(button.split(":")[1])
+
+        data[user_id]["balance"] += 10000  # Award 10k tokens
+        update_json_file(data)
+
+        bot.answer_callback_query(call.id, text="Хороший отзыв, спасибо челу!")
+        try:
+            bot.send_message(user_id, "Ваш фидбэк получил лайк от админа! Ловите бонус +10000 токенов 😊")
+        except telebot.apihelper.ApiTelegramException:  # Handle the case where the user has blocked the bot
+            pass
+    elif button == "ignore":
+        bot.answer_callback_query(call.id)
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+
 
 # Define the handler for the /prompt command
 @bot.message_handler(commands=["p", "prompt"])
