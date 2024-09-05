@@ -24,7 +24,7 @@ MAX_REQUEST_TOKENS = 4000  # max output tokens for one request (not including in
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Магдыч."
 
 # Актуальные цены можно взять с сайта https://openai.com/pricing
-PRICE_1K = 0.0015  # price per 1k tokens in USD
+PRICE_1K = 0.0006  # price per 1k tokens in USD (gpt4-o-mini)
 PREMIUM_PRICE_1K = 0.015  # price per 1k tokens in USD for premium model
 IMAGE_PRICE = 0.08  # price per generated image in USD
 WHISPER_MIN_PRICE = 0.006  # price per 1 minute of audio transcription in USD
