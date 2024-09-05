@@ -113,6 +113,25 @@ def claim_new_special_offer(user_id: int, new_offer: str):  # TODO: нужен �
         userdata["claimed_offers"] = [new_offer]
 
 
+# Отправляем юзеру инвойс на оплату
+def send_invoice_to_user(user_id: int, title: str, description: str, payload: str, price: int, photo_url: str = None, photo_height: int = None, photo_width: int = None):
+    labeled_price = [types.LabeledPrice(label=title, amount=price)]
+
+    bot.send_invoice(
+        chat_id=user_id,
+        title=title,
+        description=description,
+        invoice_payload=payload,
+        provider_token=None,  # для тг звезд отправляется None
+        currency='XTR',  # stars currency
+        prices=labeled_price,
+        photo_url=photo_url,
+        photo_height=photo_height,  # !=0/None or picture won't be shown
+        photo_width=photo_width,
+        start_parameter=str(user_id)  # Unique bot deep-link like telegram.me/your_bot?start=XXXX
+    )
+
+
 # Function to add new user to the data file
 def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
     data[user_id] = DEFAULT_NEW_USER_DATA.copy()
