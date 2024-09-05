@@ -854,6 +854,32 @@ def handle_data_command(message):
     send_smart_split_message(bot, ADMIN_ID, user_data_string)
 
 
+@bot.message_handler(commands=["refund"])  # рефанд может оформить только админ
+def handle_refund_command(message):
+    if not is_user_admin(message.from_user.id):
+        return
+    
+    args = extract_arguments(message.text).split()
+    transaction_id = args[0] if args else None  # айди транзы можно достать из тг чека
+    target_user_id = args[1] if len(args) > 1 else message.from_user.id  # юзер айди нужен только когда нужно сделать рефанд не своей личной транзакции
+    
+    if not transaction_id:
+        bot.send_message(ADMIN_ID, "Пожалуйста, укажите transaction_id и user_id для рефанда\n\nОбразец: <code>/refund transaction_id user_id</code>", parse_mode="HTML")
+        return
+
+    try:
+        target_user_id = int(target_user_id)
+        refund = bot.refund_star_payment(target_user_id, transaction_id)
+    except Exception as e:
+        bot.send_message(ADMIN_ID, "❌ Указанный transaction_id или user_id не найден!")
+        return
+
+    if refund:
+        create_payment(transaction_id, target_user_id, 'refund', 0)
+        bot.send_message(ADMIN_ID, f"Рефанд оформлен, звездочки возвращены, но вычесть токены нужно ручками")
+        print("Оформлен рефанд заказа " + transaction_id)
+
+
 # Define the handler for the admin /recent_users command to get recent active users in past n days
 @bot.message_handler(commands=["recent", "recent_users", "last"])
 def handle_recent_users_command(message):
