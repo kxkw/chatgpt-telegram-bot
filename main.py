@@ -56,8 +56,11 @@ ADMIN_ID = int(os.getenv("ADMIN_ID"))
 # File with users and global token usage data
 DATAFILE = "data.json"
 BACKUPFILE = "data-backup.json"
-PAYMENTS_FILE = "payments.csv"
-REQUESTS_FILE = "requests.csv"
+
+PRICES_FILE = "prices.json"
+
+PAYMENTS_FILE = "payments.csv"  # инфа обо всех фактах оплаты внутри бота
+REQUESTS_FILE = "requests.csv"  # этот файл нужен только для внешнего анализа данных, сам бот не использует его содержимое
 
 # Default values for new users, who are not in the data file
 DEFAULT_NEW_USER_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
