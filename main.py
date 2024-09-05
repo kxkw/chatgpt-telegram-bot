@@ -1524,58 +1524,6 @@ def handle_ask_favor_command(message):
         bot.pin_chat_message(ADMIN_ID, admin_message.message_id, disable_notification=True)
 
 
-@bot.message_handler(commands=["extended_context", "context", "ec", "remember", "erase_context", "delete_context", "clear_history", "dc", "ch"])  # /new_chat запрогать
-def handle_extended_context_command(message):
-    user_id = message.from_user.id
-
-    if is_user_blacklisted(user_id):
-        return
-
-    if not is_user_exists(user_id):
-        return
-
-    command = extract_command(message.text)
-    max_context = extract_arguments(message.text)
-
-    if command in ["erase_context", "delete_context", "clear_history", "dc", "ch"]:
-        max_context = 0
-    elif max_context == "":
-        bot.reply_to(message, "Укажите объем символов, который вы хотите хранить в \"памяти\" бота. Чем выше это значение, тем больше токенов будет "
-                              "расходовать каждый запрос, но каждый ответ будет осмысленнее, органичнее и с учетом истории диалога."
-                              "\n\nПример: `/context 5000`", parse_mode="Markdown")  # TODO: Обновить информационное сообщение
-        return
-    else:
-        try:
-            max_context = int(max_context)
-            if max_context < 0:
-                raise ValueError
-        except ValueError:
-            bot.reply_to(message, "Укажите целое положительное число символов для установки максимальной длины контекста после команды  \n\nПример: `/context 5000`")
-            return
-
-    if max_context == 0:
-        if data[user_id].get("max_context_length"):  # if is_user_extended_chat_context_enabled(user_id):
-            delete_user_chat_context(user_id)
-            del data[user_id]["max_context_length"]
-            update_json_file(data)
-
-            bot.reply_to(message, "Расширенный контекст отключен, история диалога очищена. \nРаботаем в стандартном режиме")
-        else:
-            bot.reply_to(message, "Мы уже работаем в стандартном режиме!")
-    elif max_context > 50000:
-        bot.reply_to(message, "Воу, полегче! Тебе такое не по карману, попробуй поумерить свой пыл.")
-        return
-    else:
-        # data[user_id]["is_chat_context_enabled"] = True
-        data[user_id]["max_context_length"] = max_context
-        update_json_file(data)
-
-        bot.reply_to(message, f"Максимальная длина контекста установлена на {max_context} символов. \n\n"
-                              f"Напоминание: теперь каждый запрос может расходовать до {max_context} токенов.\n"
-                              f"Отключить расширенный контекст можно командами: \n`/delete_context` или `/dc` \n`/clear_history` или `/ch` \n`/context 0`",
-                     parse_mode="Markdown")
-
-
 # Favor callback data handler
 @bot.callback_query_handler(func=lambda call: 'favor@' in call.data)
 def handle_favor_callback(call):
@@ -1632,6 +1580,58 @@ def handle_favor_callback(call):
 
     else:
         bot.answer_callback_query(call.id, "Что-то пошло не так...\n\ncallback_data: " + call.data, True)
+
+
+@bot.message_handler(commands=["extended_context", "context", "ec", "remember", "erase_context", "delete_context", "clear_history", "dc", "ch"])  # /new_chat запрогать
+def handle_extended_context_command(message):
+    user_id = message.from_user.id
+
+    if is_user_blacklisted(user_id):
+        return
+
+    if not is_user_exists(user_id):
+        return
+
+    command = extract_command(message.text)
+    max_context = extract_arguments(message.text)
+
+    if command in ["erase_context", "delete_context", "clear_history", "dc", "ch"]:
+        max_context = 0
+    elif max_context == "":
+        bot.reply_to(message, "Укажите объем символов, который вы хотите хранить в \"памяти\" бота. Чем выше это значение, тем больше токенов будет "
+                              "расходовать каждый запрос, но каждый ответ будет осмысленнее, органичнее и с учетом истории диалога."
+                              "\n\nПример: `/context 5000`", parse_mode="Markdown")  # TODO: Обновить информационное сообщение
+        return
+    else:
+        try:
+            max_context = int(max_context)
+            if max_context < 0:
+                raise ValueError
+        except ValueError:
+            bot.reply_to(message, "Укажите целое положительное число символов для установки максимальной длины контекста после команды  \n\nПример: `/context 5000`")
+            return
+
+    if max_context == 0:
+        if data[user_id].get("max_context_length"):  # if is_user_extended_chat_context_enabled(user_id):
+            delete_user_chat_context(user_id)
+            del data[user_id]["max_context_length"]
+            update_json_file(data)
+
+            bot.reply_to(message, "Расширенный контекст отключен, история диалога очищена. \nРаботаем в стандартном режиме")
+        else:
+            bot.reply_to(message, "Мы уже работаем в стандартном режиме!")
+    elif max_context > 50000:
+        bot.reply_to(message, "Воу, полегче! Тебе такое не по карману, попробуй поумерить свой пыл.")
+        return
+    else:
+        # data[user_id]["is_chat_context_enabled"] = True
+        data[user_id]["max_context_length"] = max_context
+        update_json_file(data)
+
+        bot.reply_to(message, f"Максимальная длина контекста установлена на {max_context} символов. \n\n"
+                              f"Напоминание: теперь каждый запрос может расходовать до {max_context} токенов.\n"
+                              f"Отключить расширенный контекст можно командами: \n`/delete_context` или `/dc` \n`/clear_history` или `/ch` \n`/context 0`",
+                     parse_mode="Markdown")
 
 
 # Define the handler for the /imagine command to generate AI image from text via OpenAi
