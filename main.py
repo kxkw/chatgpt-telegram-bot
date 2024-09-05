@@ -105,6 +105,14 @@ def is_starter_offer_available(user_id: int) -> bool:  # is_special_offer_availa
         return True
 
 
+def claim_new_special_offer(user_id: int, new_offer: str):  # TODO: нужен отдельный файл special-offers.json, где будет список всех предложений. И мб учет в бд будет по их айдишникам, а не по названию
+    userdata: dict = data[user_id]
+    if "claimed_offers" in userdata:  # это поле только для особых одноразовых и сезонных предложений
+        userdata["claimed_offers"].append(new_offer)
+    else:
+        userdata["claimed_offers"] = [new_offer]
+
+
 # Function to add new user to the data file
 def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
     data[user_id] = DEFAULT_NEW_USER_DATA.copy()
