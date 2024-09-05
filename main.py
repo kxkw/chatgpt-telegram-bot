@@ -132,6 +132,48 @@ def send_invoice_to_user(user_id: int, title: str, description: str, payload: st
     )
 
 
+def create_default_prices_file() -> dict:
+    # Объем токенов можно указывать с буквой "k" в конце, например "10k" = 10000 токенов. Цены в тг звездах. Discount - это скидка в процентах, которая будет отображаться рядом с ценой
+    # На каждую опцию объема токенов появится отдельная кнопка для ее покупки в магазине токенов (можно менять количество кнопок добавлением/удалением опций в файле prices.json)
+    default_prices = {
+        "tokens": {
+            "1000": {"price": 1, "discount": 0},
+            "5000": {"price": 4, "discount": 20},
+            "10k": {"price": 7, "discount": 30}
+        },
+        "premium_tokens": {
+            "100": {"price": 10, "discount": 0},
+            "1000": {"price": 95, "discount": 5},
+            "10k": {"price": 900, "discount": 10}
+        },
+        "images": {
+            "1": {"price": 20, "discount": 0},
+            "100": {"price": 1900, "discount": 5},
+            "1k": {"price": 16000, "discount": 20}
+        }
+    }
+    
+    # Добавляем плейсхолдеры для названий и описаний инвойсов
+    for token_type in default_prices:
+        for amount in default_prices[token_type]:
+            default_prices[token_type][amount]["invoice_title"] = f"{amount} {token_type}"
+            default_prices[token_type][amount]["invoice_description"] = f"Покупка {amount} {token_type}"
+    
+    with open(PRICES_FILE, 'w', encoding='utf-8') as file:
+        json.dump(default_prices, file, indent=4, ensure_ascii=False)
+    print(f"Создан файл {PRICES_FILE} с плейсхолдер ценами. Пожалуйста, заполните его актуальными данными и перезапустите бота.")
+    return default_prices
+
+
+def load_prices(prices_file: str = PRICES_FILE) -> dict:
+    if not os.path.exists(prices_file):
+        print(f"Файл {prices_file} не найден. Создаем файл с плейсхолдер ценами.")
+        return create_default_prices_file()
+
+    with open(prices_file, 'r', encoding='utf-8') as file:
+        return json.load(file)
+
+
 # Function to add new user to the data file
 def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
     data[user_id] = DEFAULT_NEW_USER_DATA.copy()
@@ -755,7 +797,10 @@ else:
 os.makedirs(CHAT_CONTEXT_FOLDER, exist_ok=True)
 chat_context = {}
 
-# Calculate the price per token in cents
+# Глобальная переменная для хранения цен на все типы токенов (для магазина)
+prices: dict = load_prices(PRICES_FILE)
+
+# Себестоимость токенов в центах (к магазину не относится)
 PRICE_CENTS = PRICE_1K / 10
 PREMIUM_PRICE_CENTS = PREMIUM_PRICE_1K / 10
 IMAGE_PRICE_CENTS = IMAGE_PRICE * 100
