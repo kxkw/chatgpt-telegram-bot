@@ -216,13 +216,13 @@ def write_request_data_to_csv(user_id: int, model_type: str, input_tokens, outpu
         if not is_file_exists:
             writer.writeheader()
 
-        # Write the payment data
+        # Write the request data
         writer.writerow(request_data)
 
 
 # Function to write payment data to CSV file
 def write_payment_to_csv(payment_data: dict) -> None:
-    headers = ['transaction_id', 'user_id', 'payload', 'stars_amount', 'date']
+    headers = ['transaction_id', 'user_id', 'payload', 'stars_amount', 'timestamp']
 
     is_file_exists = os.path.isfile(PAYMENTS_FILE)
 
@@ -244,7 +244,7 @@ def create_payment(transaction_id: str, user_id: int, payload: str, amount: int)
         'user_id': user_id,
         'payload': payload,
         'stars_amount': amount,
-        'date': datetime.now().strftime(DATE_FORMAT)
+        'timestamp': int(datetime.now().timestamp())
     }
     write_payment_to_csv(payment_data)
 
