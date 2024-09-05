@@ -1986,26 +1986,6 @@ def handle_message(message):
         bot.send_message(ADMIN_ID, admin_log, parse_mode="HTML")
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("feedback@"))
-def handle_feedback_response(call):
-    button: str = call.data.replace("feedback@", "")  # Extract the button pressed
-
-    if button.startswith("thank:"):
-        user_id = int(button.split(":")[1])
-
-        data[user_id]["balance"] += 10000  # Award 10k tokens
-        update_json_file(data)
-
-        bot.answer_callback_query(call.id, text="Хороший отзыв, спасибо челу!")
-        try:
-            bot.send_message(user_id, "Ваш отзыв получил лайк от админа! Ловите бонус +10000 токенов 😊")
-        except telebot.apihelper.ApiTelegramException:  # Handle the case where the user has blocked the bot
-            pass
-    elif button == "ignore":
-        bot.answer_callback_query(call.id, text="Отзыв забыто.")
-    bot.delete_message(call.message.chat.id, call.message.message_id)
-
-
 # Handler only for bot pinned messages
 @bot.message_handler(content_types=["pinned_message"])
 def handle_pinned_message(message):
