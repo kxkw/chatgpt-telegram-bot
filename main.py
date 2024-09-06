@@ -437,6 +437,17 @@ def convert_k_to_int(notation_string: str) -> int:
     return number * 1000**k_count
 
 
+def format_number_with_spaces(number: int) -> str:
+    """
+    Convert an integer to a nicely formatted string with spaces between thousands.
+    Example: 100000 -> 100 000
+    
+    :param number: An integer to be formatted
+    :return: A formatted string with spaces between thousands
+    """
+    return '{:,}'.format(number).replace(',', ' ')
+
+
 def set_user_current_lastdate(user_id: int) -> None:
     data[user_id]["lastdate"] = (datetime.now()).strftime(DATE_FORMAT)
 
