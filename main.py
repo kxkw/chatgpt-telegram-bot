@@ -1335,7 +1335,7 @@ def handle_stats_command(message):
 
 
 # Define the handler for the /feedback command
-@bot.message_handler(commands=["feedback", "fb", "support"])
+@bot.message_handler(commands=["feedback", "fb", "support", "paysupport"])
 def handle_feedback_command(message):
     user_id = message.from_user.id
 
@@ -1351,7 +1351,7 @@ def handle_feedback_command(message):
         bot.reply_to(message, "Многобукаф, не осилил. Давай сократим до 3000 символов, заранее спасибо")
         return
     if not feedback_text:
-        bot.reply_to(message, "Напиши свой отзыв или пожелания через пробел сразу после команды /feedback\n\nПример:\n`/feedback все супер, бро!`\n\nP.S. Ходят слухи, что иногда за фидбэк прилетают бесплатные токены 😇", parse_mode='Markdown')
+        bot.reply_to(message, "Напиши свой отзыв или пожелания через пробел сразу после команды /feedback или /fb\n\nПример:\n`/feedback все супер, бро!`\n\nP.S. Ходят слухи, что иногда за фидбэк прилетают бесплатные токены 😇", parse_mode='Markdown')
         return
 
     if user_id == ADMIN_ID:
@@ -1379,12 +1379,12 @@ def handle_feedback_response(call):
     if button.startswith("thank:"):
         user_id = int(button.split(":")[1])
 
-        data[user_id]["balance"] += 10000  # Award 10k tokens
+        data[user_id]["balance"] += 20000  # Award 20k tokens
         update_json_file(data)
 
         bot.answer_callback_query(call.id, text="Хороший отзыв, спасибо челу!")
         try:
-            bot.send_message(user_id, "Ваш фидбэк получил лайк от админа! Ловите бонус +10000 токенов 😊")
+            bot.send_message(user_id, "Ваш фидбэк получил лайк от админа! Ловите бонус +20000 токенов 😊")
         except telebot.apihelper.ApiTelegramException:  # Handle the case where the user has blocked the bot
             pass
     elif button == "ignore":
