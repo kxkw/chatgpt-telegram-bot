@@ -1453,18 +1453,258 @@ def handle_balance_command(message):
     bot.reply_to(message, balance_string)
 
 
-# Define the handler for the /topup command
-@bot.message_handler(commands=["topup"])
-def handle_topup_command(message):
+@bot.message_handler(commands=["buy_tokens", "buy", "pay", "store", "shop", "topup"])  # TODO: добавить текста
+def handle_buy_tokens_command(message):
     user_id = message.from_user.id
 
     if is_user_blacklisted(user_id):
         return
 
-    if is_user_exists(user_id):
-        bot.reply_to(message, f"Для пополнения баланса обратитесь к админу")  # Placeholder
+    if not is_user_exists(user_id):
+        bot.reply_to(message, "Мы еще не знакомы, нажмите команду /start")
+        return
+
+    buy_tokens_message_string: str = "Лавка Магдыча открыта! (Магдыч Стор на связи)"
+    message_effect_id = None
+
+    if is_user_admin(user_id):
+        buy_tokens_message_string += "\n\n<strong>Хозяин, сам у себя лучше не покупай, не забывай про комсу!</strong>"
+
+    markup = types.InlineKeyboardMarkup()
+
+    if is_starter_offer_available(user_id):
+        buy_tokens_message_string += (
+            f"\n\nВам доступен Стартовый выгодный набор! "
+            f"\nЕго можно приобрести только один раз. При покупке этого набора все токены внутри дешевле на 30%"
+        )
+        markup.add(types.InlineKeyboardButton(text='🔥🔥 Начальный набор 🔥🔥', callback_data='buy@starter-offer'))
+        message_effect_id = "5104841245755180586"  # айди эффекта огонька 🔥
+
+    markup.add(
+        types.InlineKeyboardButton(text='💰 Токены', callback_data='store@tokens'),
+        types.InlineKeyboardButton(text='💎 Премиум токены', callback_data='store@premium_tokens'),
+        types.InlineKeyboardButton(text='🎨 Генерации изображений', callback_data='store@images'),
+        row_width=1
+    )
+
+    no_private_chat_string = ""
+    try:
+        bot.send_message(
+            user_id,
+            buy_tokens_message_string,
+            parse_mode="HTML",
+            reply_markup=markup,
+            message_effect_id=message_effect_id
+        )
+    except telebot.apihelper.ApiTelegramException:
+        no_private_chat_string = (
+            f'<strong>Но личка оказалась закрыта!</strong> \n\n'
+            f'Я бесправное существо и не могу писать людям первым 😞 \n\n'
+            f'Чтобы перейти в лс, нажмите <a href="https://t.me/{bot.get_me().username}?start=0">ЗДЕСЬ</a>\n'  # значение после start нужно, чтобы по клику открылась личка с ботом
+        )
+
+    if message.chat.type != 'private':  # в групповые чаты расценки не скидываем
+        bot.reply_to(message, "Скинула в лс 💅\n\n" + no_private_chat_string, parse_mode="HTML")
+
+
+@bot.callback_query_handler(func=lambda call: 'store@' in call.data)
+def handle_user_buttons_callback(call):
+    button: str = call.data.replace('store@', '')
+    user_id: int = call.from_user.id
+
+    if not is_user_exists(user_id) or is_user_blacklisted(user_id):
+        return
+
+    if button in ['tokens', 'premium_tokens', 'images']:
+        bot.answer_callback_query(call.id)
+
+        token_type = button
+        token_emojis = {
+            'tokens': '💰',
+            'premium_tokens': '💎',
+            'images': '🎨'
+        }
+
+        emoji = token_emojis[token_type]
+
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        for amount, details in prices[token_type].items():
+            price = details["price"]
+            discount = details["discount"]
+            
+            formatted_amount = format_number_with_spaces(convert_k_to_int(amount))
+            
+            button_text = f"{emoji} {formatted_amount} – ⭐️{price}"
+            button_text += f" (-{discount}%)" if discount > 0 else " (^_^)"
+            
+            callback_data = f'buy@{token_type}:{amount}'  # buy@tokens:100k
+            markup.add(types.InlineKeyboardButton(text=button_text, callback_data=callback_data))
+        
+        markup.add(types.InlineKeyboardButton(text='Назад', callback_data='store@back'))
+        
+        bot.edit_message_text(
+            chat_id=user_id,
+            message_id=call.message.message_id,
+            text="Выберите объем токенов для покупки:",  # TODO: текст тоже должен зависеть от выбранного типа токенов
+            reply_markup=markup
+        )
+
+    elif button == 'back':  # TODO: перепроверить! отображаем дефолтный текст и кнопки для юзера
+        bot.answer_callback_query(call.id)
+
+        markup = types.InlineKeyboardMarkup()
+        buy_tokens_message_string: str = 'Лавка Магдыча открыта!'
+
+        if is_starter_offer_available(user_id):
+            buy_tokens_message_string += (
+                f"\n\nВам доступен Стартовый выгодный набор! "
+                f"\nЕго можно приобрести только один раз. "
+                f"При покупке этого набора токены выгоднее на 30%"
+            )
+            markup.add(types.InlineKeyboardButton(text='🔥🔥 Начальный набор 🔥🔥', callback_data='buy@starter-offer'))
+
+        markup.add(
+            types.InlineKeyboardButton(text='💰 Токены', callback_data='store@tokens'),
+            types.InlineKeyboardButton(text='💎 Премиум токены', callback_data='store@premium_tokens'),
+            types.InlineKeyboardButton(text='🎨 Генерации изображений', callback_data='store@images'),
+            row_width=1
+        )
+
+        bot.edit_message_text(
+            chat_id=user_id,
+            message_id=call.message.message_id,
+            text=buy_tokens_message_string,
+            reply_markup=markup
+        )
+
+
+@bot.callback_query_handler(func=lambda call: 'buy@' in call.data)
+def handle_buy_offer_callback(call):
+    offer: str = call.data.replace('buy@', '')
+    user_id: int = call.from_user.id
+
+    if not is_user_exists(user_id) or is_user_blacklisted(user_id):
+        return
+
+    if offer == 'starter-offer':  # TODO: сделать блок для обработки всех специальных предложений из отдельного файла с офферами
+        if not is_starter_offer_available(user_id):
+            bot.answer_callback_query(call.id, "Вы уже приобрели стартовый набор!")
+            return
+
+        bot.answer_callback_query(call.id)  # ответ без текста, чтобы юзеру ничего не высвечивалось, но при этом и нажатая им инлайн кнопка перестала мигать
+        # TODO: доделать начальный набор
+        send_invoice_to_user(
+            user_id,
+            "Стартовый набор",
+            "Одноразовый набор всех токенов с огромной выгодой!",
+            'starter-offer',
+            price=130
+        )
+        return
+
+    token_type, token_amount = offer.split(':')
+    
+    if token_type in prices and token_amount in prices[token_type]:
+        offer_details = prices[token_type][token_amount]
+        
+        title = offer_details["invoice_title"]
+        description = offer_details["invoice_description"]
+        price_stars = offer_details["price"]
+        
+        payload = f"{token_type}:{token_amount}"  # tokens:100k
+        
+        bot.answer_callback_query(call.id)
+        send_invoice_to_user(user_id, title, description, payload, price_stars)
     else:
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
+        bot.answer_callback_query(call.id, text="Выбранное предложение недоступно или уже вышло из продажи. Перезайдите в магазин.")
+
+
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def checkout(pre_checkout_query):
+    user_id = pre_checkout_query.from_user.id
+    invoice_payload: str = pre_checkout_query.invoice_payload
+
+    if invoice_payload == "starter-offer" and not is_starter_offer_available(user_id):
+        bot.answer_pre_checkout_query(
+            pre_checkout_query.id,
+            ok=False,
+            error_message="Вы уже приобрели стартовый набор!"
+        )
+        return
+    elif ':' in invoice_payload:
+        token_type, amount = invoice_payload.split(':')  # tokens:100k
+        if token_type not in prices or amount not in prices[token_type]:  # Combined check for token type and amount
+            print(f"Неизвестный token_type или amount в инвойс пейлоад, пополнения не будет: {invoice_payload}")
+            bot.answer_pre_checkout_query(
+                pre_checkout_query.id,
+                ok=False,
+                error_message="Выбранное предложение недоступно или уже вышло из продажи. Перезайдите в магазин."
+            )
+            return
+
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+
+@bot.message_handler(content_types=['successful_payment'])  # TODO: доделать текста
+def got_payment(message):
+    user_id = message.from_user.id
+    invoice_payload: str = message.successful_payment.invoice_payload
+    stars_amount: int = message.successful_payment.total_amount
+    transaction_id: str = message.successful_payment.telegram_payment_charge_id
+
+    user_data: dict = data[user_id]
+    user_data["stars_spent"] = user_data.get("stars_spent", 0) + stars_amount
+    user_data["payments"] = user_data.get("payments", 0) + 1
+
+    message_string: str = ""
+
+    if invoice_payload == "starter-offer":
+        claim_new_special_offer(user_id, "starter-offer")
+
+        user_data["balance"] += 100000  # TODO: брать все содержимое набора из отдельного файла со спец предложениями
+        user_data["premium_balance"] = user_data.get("premium_balance", 0) + 50000
+        user_data["image_balance"] = user_data.get("image_balance", 0) + 5
+
+        message_string = "Премиум пак приобретен"
+
+    elif ':' in invoice_payload:
+        token_type, amount = invoice_payload.split(':')
+        amount = convert_k_to_int(amount)
+
+        balance_types = {
+            'tokens': 'balance',
+            'premium_tokens': 'premium_balance',
+            'images': 'image_balance'
+        }
+
+        balance_type: str = balance_types.get(token_type)
+        if balance_type:
+            formatted_amount: str = format_number_with_spaces(amount)
+            user_data[balance_type] = user_data.get(balance_type, 0) + amount
+            print(f"Пользователю {user_id} пополнен {balance_type} на {formatted_amount} токенов")
+            
+            emoji_map = {
+                'balance': '💰',
+                'premium_balance': '💎 ',
+                'image_balance': '🎨 '
+            }
+            
+            message_string = f"На ваш баланс было зачислено {emoji_map[balance_type]}{formatted_amount}!\n\n"
+            message_string += f"Текущий баланс: {emoji_map[balance_type]}{format_number_with_spaces(user_data[balance_type])}"
+        else:
+            print(f"Неизвестный тип токенов: {token_type}")
+    else:
+        print(f"Неизвестный инвойс пейлоад: {invoice_payload}")
+
+    create_payment(transaction_id, user_id, invoice_payload, stars_amount)
+    update_json_file(data)
+
+    print(f"Пользователь {user_id} совершил оплату на ⭐️{stars_amount}! Приобретено: {invoice_payload}")
+    if message_string:
+        bot.send_message(message.chat.id, message_string, parse_mode='Markdown')
+
+    if not is_user_admin(user_id):
+        bot.send_message(ADMIN_ID, f"Юзер {user_id} совершил оплату на ⭐️{stars_amount}!\nПриобретено: {invoice_payload}")
 
 
 # Define the handler for the /stats command
