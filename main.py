@@ -63,8 +63,14 @@ PAYMENTS_FILE = "payments.csv"  # инфа обо всех фактах опла
 REQUESTS_FILE = "requests.csv"  # этот файл нужен только для внешнего анализа данных, сам бот не использует его содержимое
 
 # Default values for new users, who are not in the data file
-DEFAULT_NEW_USER_DATA = {"requests": 0, "tokens": 0, "balance": NEW_USER_BALANCE,
-                         "name": "None", "username": "None", "lastdate": "01.01.1990 00:00:00"}
+DEFAULT_NEW_USER_DATA = {
+    "requests": 0,
+    "tokens": 0,
+    "balance": NEW_USER_BALANCE,
+    "name": "None",
+    "username": "None",
+    "lastdate": "01.01.1990 00:00:00"
+}
 
 
 """======================FUNCTIONS======================="""
