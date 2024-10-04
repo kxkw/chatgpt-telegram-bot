@@ -437,6 +437,28 @@ def get_user_referrals(user_id: int) -> list:
     return user_referrals
 
 
+def get_user_referrer(user_id: int) -> Optional[int]:
+    """Retrieve the referrer id for a user if it exists."""
+    return data[user_id].get("ref_id", None)
+
+
+# Function to get user's partner balance
+def get_user_partner_balance(user_id: int) -> float:
+    return data[user_id].get("partner_balance", 0)
+
+
+def update_user_partner_balance(user_id: int, delta_amount: float) -> None:
+    data[user_id]["partner_balance"] = data[user_id].get("partner_balance", 0) + delta_amount
+
+
+# Function to calculate user's commission
+def calculate_partner_commission(amount: int, commission_rate: float) -> float:
+    """Calculate the commission based on the amount and commission rate."""
+    commission = amount * commission_rate
+    rounded_commission = int(commission * 10) / 10  # Округляем значение вниз до первого знака после запятой
+    return rounded_commission
+
+
 def get_recent_active_users(days: int) -> list:
     recent_active_users = []
     current_date = datetime.now()
