@@ -97,6 +97,18 @@ def is_paid_user(user_id: int) -> bool:
     return True if data[user_id].get("payments", 0) > 0 else False
 
 
+def is_special_offer(invoice_payload: str) -> bool:
+    """
+    Проверяет, является ли предложение специальным.
+    Обычные предложения содержат двоеточие ':' в invoice_payload, специальные - нет.
+
+    Примеры:
+    "tokens:100k" - обычное предложение
+    "starter-offer" - специальное предложение
+    """
+    return ':' not in invoice_payload
+
+
 # Доступно ли юзеру начальное одноразовое предложение к покупке
 def is_starter_offer_available(user_id: int) -> bool:  # is_special_offer_available() in the future, когда будет больше одного особых предложений
     if "claimed_offers" in data[user_id] and "starter-offer" in data[user_id]["claimed_offers"]:
