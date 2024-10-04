@@ -249,6 +249,43 @@ def create_payment(transaction_id: str, user_id: int, payload: str, amount: int)
     write_payment_to_csv(payment_data)
 
 
+def update_user_stars_and_payments(user_id: int, stars_delta: int) -> None:
+    """
+    Update a user's stars spent and payment count in DB.
+    Positive stars_delta represents a purchase, negative represents a refund.
+
+    :param user_id: The ID of the user in data.json
+    :param stars_delta: The change in stars spent (positive for purchase, negative for refund)
+    """
+    data[user_id]["stars_spent"] = data[user_id].get("stars_spent", 0) + stars_delta
+    payment_delta = 1 if stars_delta >= 0 else -1
+    data[user_id]["payments"] = data[user_id].get("payments", 0) + payment_delta
+
+
+def parse_invoice_payload(payload: str) -> tuple[Optional[str], int]:
+    """
+    Достает из payload инвойса тип баланса и количество токенов, чтобы легко изменять баланс (пока что без особых предложений)
+    Пример: payload = "tokens:100k" -> ("balance", 100000)
+
+    :param payload: A string in the format "token_type:amount", amount can be with "k" (for 1000) or without it
+    :return: A tuple containing the balance type (or None if not found) and the token amount as an integer
+    """
+    token_type, amount = payload.split(':')
+
+    balance_types = {
+        'tokens': 'balance',
+        'premium_tokens': 'premium_balance',
+        'images': 'image_balance'
+    }
+
+    balance_type = balance_types.get(token_type, None)
+    if balance_type is None:
+        return None, 0
+
+    amount = convert_k_to_int(amount)
+    return balance_type, amount
+
+
 # Function to get user_id by username
 def get_user_id_by_username(username: str) -> Optional[int]:
     for user_id in list(data.keys())[1:]:
