@@ -1015,22 +1015,74 @@ def handle_refund_command(message):
     
     args = extract_arguments(message.text).split()
     transaction_id = args[0] if args else None  # айди транзы можно достать из тг чека
-    target_user_id = args[1] if len(args) > 1 else message.from_user.id  # юзер айди нужен только когда нужно сделать рефанд не своей личной транзакции
-    
+
     if not transaction_id:
-        bot.send_message(ADMIN_ID, "Пожалуйста, укажите transaction_id и user_id для рефанда\n\nОбразец: <code>/refund transaction_id user_id</code>", parse_mode="HTML")
+        bot.send_message(ADMIN_ID, "Пожалуйста, укажите айди транзы для рефанда через пробел после команды\n\nОбразец: <code>/refund transaction_id</code>", parse_mode="HTML")
         return
 
+    # Проверяем, существует ли файл с транзакциями (была ли хоть одна покупка в боте)
+    if not os.path.exists(PAYMENTS_FILE):
+        bot.send_message(ADMIN_ID, "❌ Файл с транзакциями не найден. Возможно, в боте еще не было покупок.")
+        return
+
+    # Достаем target_user_id по айди транзы из CSV файла с транзакциями
+    target_user_id = None
     try:
-        target_user_id = int(target_user_id)
+        with open(PAYMENTS_FILE, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if row['transaction_id'] == transaction_id:
+                    target_user_id = int(row['user_id'])
+                    stars_amount = int(row['stars_amount'])
+                    payload = row['payload']
+                    break
+    except Exception as e:
+        bot.send_message(ADMIN_ID, f"❌ Ошибка при чтении файла '{PAYMENTS_FILE}': {str(e)}")
+        return
+
+    if target_user_id is None:
+        bot.send_message(ADMIN_ID, f"❌ По указанному transaction_id не удалось найти операцию пользователя в файле '{PAYMENTS_FILE}'")
+        return
+
+    balance_type = None
+    token_amount = 0
+    # если были куплены токены не в составе спецпредложения, то проверим их наличие у чела, чтобы потом вычесть их с баланса (если он их не использовал)
+    if not is_special_offer(payload):
+        balance_type, token_amount = parse_invoice_payload(payload)
+
+        if balance_type is None:
+            # сюда мы никогда не должны попасть, если все покупки работают и заносят инфу корректно
+            bot.send_message(ADMIN_ID, f"❌ Неверный тип токенов в payload, не удалось определить balance_type: {payload}")
+            return
+
+        # проверяем, может ли чел позволить себе рефанд (если он еще не потратил купленные токены) (сейчас позволяем делать челу рефанд в минусовой баланс)
+        # if data[target_user_id].get(balance_type, 0) < token_amount:
+        #     bot.send_message(ADMIN_ID, f"❌ Не удалось оформить рефанд, так как пользователь {target_user_id} уже потратил купленные токены: {payload}")
+        #     # return
+
+    try:
         refund = bot.refund_star_payment(target_user_id, transaction_id)
     except Exception as e:
-        bot.send_message(ADMIN_ID, "❌ Указанный transaction_id или user_id не найден!")
+        bot.send_message(ADMIN_ID, "❌ Неверный transaction_id или рефанд уже совершен!")
         return
 
     if refund:
         create_payment(transaction_id, target_user_id, 'refund', 0)
-        bot.send_message(ADMIN_ID, f"Рефанд оформлен, звездочки возвращены, но вычесть токены нужно ручками")
+        update_user_stars_and_payments(target_user_id, -1 * stars_amount)
+
+        message_string = f"🔄 Рефанд оформлен\n\n" \
+                         f"<b>uid</b>: <code>{str(target_user_id)}</code>\n" \
+                         f"<b>сумма</b>: {str(stars_amount)}⭐️\n" \
+                         f"<b>payload</b>: {payload}\n\n"
+
+        if balance_type is not None:
+            data[target_user_id][balance_type] -= token_amount
+            message_string += f"🔽 <i>{balance_type}</i> пользователя уменьшен на {token_amount} токенов"
+        else:
+            message_string += f"Вычесть токены нужно ручками (спецпредложение)"  # потом и спецпредложения автоматизировать, когда появится отдельный файл с ними
+
+        update_json_file(data)
+        bot.send_message(ADMIN_ID, message_string, parse_mode="HTML")
         print("Оформлен рефанд заказа " + transaction_id)
 
 
