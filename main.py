@@ -338,7 +338,7 @@ def get_recent_active_users(days: int) -> list:
             continue
 
         try:
-            last_request_date = datetime.strptime(user_data["lastdate"], DATE_FORMAT)
+            last_request_date = datetime.strptime(get_user_lastdate(user_id), DATE_FORMAT)
         # Если дата в неправильном формате, то пропускаем строчку (значит у юзера все равно 0 запросов, а Вы - олд)
         except ValueError:
             continue
@@ -452,6 +452,16 @@ def format_number_with_spaces(number: int) -> str:
     :return: A formatted string with spaces between thousands
     """
     return '{:,}'.format(number).replace(',', ' ')
+
+
+def get_user_lastdate(user_id: int) -> str:
+    """
+    Возвращает дату последнего запроса юзера.
+
+    :return: The last date as a string formatted according to DATE_FORMAT ("%d.%m.%Y %H:%M:%S")
+    :rtype: str
+    """
+    return data[user_id]["lastdate"]
 
 
 def set_user_current_lastdate(user_id: int) -> None:
@@ -784,7 +794,7 @@ def handle_data_command(message):
                        f"{images_string}" \
                        f"{whisper_string}" \
                        f"{extended_context_string}" \
-                       f"last request: {data[target_user_id]['lastdate']}\n"
+                       f"last request: {get_user_lastdate(target_user_id)}\n\n"
 
     # Calculate user cost in cents and round it to 3 digits after the decimal point
     user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0),
