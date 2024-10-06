@@ -461,11 +461,17 @@ def get_user_lastdate(user_id: int) -> str:
     :return: The last date as a string formatted according to DATE_FORMAT ("%d.%m.%Y %H:%M:%S")
     :rtype: str
     """
-    return data[user_id]["lastdate"]
+    last_date_string = str(data[user_id]["lastdate"])  # строковый костыль, чтобы было совместимо с легаси текстовым форматом дат. мб в 2.0 откажемся
+    if last_date_string.isdigit():
+        last_date_timestamp = int(last_date_string)
+        return datetime.fromtimestamp(last_date_timestamp).strftime(DATE_FORMAT)
+    else:
+        return last_date_string
 
 
 def set_user_current_lastdate(user_id: int) -> None:
-    data[user_id]["lastdate"] = (datetime.now()).strftime(DATE_FORMAT)
+    # data[user_id]["lastdate"] = (datetime.now()).strftime(DATE_FORMAT)  # было, на память
+    data[user_id]["lastdate"] = int(datetime.now().timestamp())  # таймстемп без милисекунд
 
 
 # Получает на вход новые данные по пользователю по произведенным запросам, потраченным токенам, премиум токенам и изображениям и добавляет их в базу
