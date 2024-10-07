@@ -503,7 +503,9 @@ def get_user_partner_balance(user_id: int) -> float:
 
 
 def update_user_partner_balance(user_id: int, delta_amount: float) -> None:
-    data[user_id]["partner_balance"] = data[user_id].get("partner_balance", 0) + delta_amount
+    new_partner_balance = data[user_id].get("partner_balance", 0) + delta_amount
+    rounded_new_partner_balance = int(new_partner_balance * 10) / 10  # Округляем значение вниз до одного знака после запятой
+    data[user_id]["partner_balance"] = rounded_new_partner_balance
 
 
 # Function to calculate user's commission
