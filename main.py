@@ -123,6 +123,11 @@ def is_starter_offer_available(user_id: int) -> bool:  # is_special_offer_availa
         return True
 
 
+def is_user_alerts_enabled(user_id: int) -> bool:
+    """Check if the user has alerts enabled. Used for partner rewards notifications."""
+    return data[user_id].get("alerts_enabled", True)
+
+
 def claim_new_special_offer(user_id: int, new_offer: str):  # TODO: нужен отдельный файл special-offers.json, где будет список всех предложений. И мб учет в бд будет по их айдишникам, а не по названию
     userdata: dict = data[user_id]
     if "claimed_offers" in userdata:  # это поле только для особых одноразовых и сезонных предложений
