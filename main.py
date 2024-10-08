@@ -38,6 +38,10 @@ REFERRAL_BONUS = 20000  # bonus for inviting a new user
 FAVOR_AMOUNT = 30000  # amount of tokens per granted favor
 FAVOR_MIN_LIMIT = 10000  # minimum balance to ask for a favor
 
+PARTNER_COMMISSION_FIRST_LEVEL = 0.18  # 18% комиссия для партнеров первого уровня
+PARTNER_COMMISSION_SECOND_LEVEL = 0.02  # 2% комиссия для партнеров второго уровня
+PARTNER_SPECIAL_OFFER_COMMISSION = 0.08  # 8% партнерская комиссия для особых спецпредложений
+
 # Позволяет боту "помнить" поледние n символов диалога с пользователем за счет увеличенного расхода токенов (округляется вниз до целого сообщения)
 DEFAULT_CHAT_CONTEXT_LENGTH = 5000  # default max length of chat context in characters.
 CHAT_CONTEXT_FOLDER = "chat_context/"
@@ -519,6 +523,57 @@ def calculate_partner_commission(amount: int, commission_rate: float) -> float:
     commission = amount * commission_rate
     rounded_commission = int(commission * 10) / 10  # Округляем значение вниз до первого знака после запятой
     return rounded_commission
+
+
+def process_partner_commission(partner_id: int, stars_amount: int, is_special_offer=False, level=1):
+    """
+    Process partner commission based on stars amount and partner level.
+    Updates partner balance and sends notification if user alerts are enabled.
+    """
+    if level == 1:
+        commission_rate = PARTNER_SPECIAL_OFFER_COMMISSION if is_special_offer else PARTNER_COMMISSION_FIRST_LEVEL
+    elif level == 2:
+        commission_rate = PARTNER_COMMISSION_SECOND_LEVEL
+    else:
+        return None
+
+    commission = calculate_partner_commission(stars_amount, commission_rate)
+    update_user_partner_balance(partner_id, commission)
+
+    if commission > 0 and is_user_alerts_enabled(partner_id):
+        level_text = "второго уровня" if level == 2 else "первого уровня"
+        referrer_message = (
+            f"🎉 Вы получили партнерское вознаграждение {level_text}! ({int(commission_rate*100)}%)\n\n"
+            f"💰 Сумма: {commission}⭐️\n"
+            f"💼 Ваш партнерский баланс: {get_user_partner_balance(partner_id)}⭐️\n\n"
+            f"Больше в личном кабинете по команде /partner_balance"
+        )
+        keyboard = types.InlineKeyboardMarkup()
+        keyboard.add(types.InlineKeyboardButton("Отключить уведомления", callback_data=f"user_alerts@disable:{partner_id}"))
+        try:
+            bot.send_message(partner_id, referrer_message, reply_markup=keyboard)
+        except Exception as e:
+            pass  # если чел заблочил бота, то скип
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('user_alerts@'))
+def callback_toggle_alerts(call):
+    button, user_id = call.data.replace('user_alerts@', '').split(':')
+    user_id = int(user_id)
+    
+    if button == 'disable':
+        data[user_id]['alerts_enabled'] = False
+        message = "Уведомления о наградах отключены"
+    elif button == 'enable':  # этой кнопки еще нет в боте, но на будущее
+        data[user_id]['alerts_enabled'] = True
+        message = "Уведомления о наградах включены!"
+    else:
+        bot.answer_callback_query(call.id, "Неверный формат данных.")
+        return
+
+    update_json_file(data)
+    bot.answer_callback_query(call.id, message)
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
 
 
 def get_recent_active_users(days: int) -> list:
