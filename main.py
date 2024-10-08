@@ -274,7 +274,7 @@ def create_payment(transaction_id: str, user_id: int, payload: str, amount: int)
 
 def update_user_stars_and_payments(user_id: int, stars_delta: int) -> None:
     """
-    Update a user's stars spent and payment count in DB.
+    Update a user's stars spent and payment count.
     Positive stars_delta represents a purchase, negative represents a refund.
 
     :param user_id: The ID of the user in data.json
