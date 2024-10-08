@@ -1855,15 +1855,14 @@ def checkout(pre_checkout_query):
 @bot.message_handler(content_types=['successful_payment'])  # TODO: доделать текста
 def got_payment(message):
     user_id = message.from_user.id
+    user_data: dict = data[user_id]
+
     invoice_payload: str = message.successful_payment.invoice_payload
     stars_amount: int = message.successful_payment.total_amount
     transaction_id: str = message.successful_payment.telegram_payment_charge_id
-
-    user_data: dict = data[user_id]
-    user_data["stars_spent"] = user_data.get("stars_spent", 0) + stars_amount
-    user_data["payments"] = user_data.get("payments", 0) + 1
-
     message_string: str = ""
+
+    update_user_stars_and_payments(user_id, stars_amount)
 
     if invoice_payload == "starter-offer":
         claim_new_special_offer(user_id, "starter-offer")
@@ -1888,7 +1887,6 @@ def got_payment(message):
         if balance_type:
             formatted_amount: str = format_number_with_spaces(amount)
             user_data[balance_type] = user_data.get(balance_type, 0) + amount
-            print(f"Пользователю {user_id} пополнен {balance_type} на {formatted_amount} токенов")
             
             emoji_map = {
                 'balance': '💰',
@@ -1904,14 +1902,35 @@ def got_payment(message):
         print(f"Неизвестный инвойс пейлоад: {invoice_payload}")
 
     create_payment(transaction_id, user_id, invoice_payload, stars_amount)
+
+    # Считаем партнерские комиссионные, если есть кому начислить
+    partner_id = get_user_referrer(user_id)
+    if partner_id:
+        is_special = is_special_offer(invoice_payload)  # TODO: мб определять и брать это значение выше, т.к. мы там уже это точно выясняем
+        process_partner_commission(partner_id, stars_amount, is_special, level=1)
+
+        second_level_partner_id = get_user_referrer(partner_id)
+        if second_level_partner_id:
+            process_partner_commission(second_level_partner_id, stars_amount, level=2)
+
     update_json_file(data)
 
-    print(f"Пользователь {user_id} совершил оплату на ⭐️{stars_amount}! Приобретено: {invoice_payload}")
-    if message_string:
-        bot.send_message(message.chat.id, message_string, parse_mode='Markdown')
+    print(f"Пользователь {user_id} совершил оплату на {stars_amount}⭐️! Приобретено: {invoice_payload}")
+    message_string += "Есть вопросы или нужна помощь? \nВыручит команда /paysupport"
+    try:
+        bot.send_message(user_id, message_string, parse_mode='Markdown')
+    except Exception as e:
+        print(f"Ошибка при отправке сообщения об успешной покупке юзеру {user_id}: {str(e)}")
 
     if not is_user_admin(user_id):
-        bot.send_message(ADMIN_ID, f"Юзер {user_id} совершил оплату на ⭐️{stars_amount}!\nПриобретено: {invoice_payload}")
+        bot.send_message(
+            ADMIN_ID, 
+            f"💳 Новая покупка!\n\n"
+            f"<b>uid:</b> <code>{user_id}</code>\n"
+            f"<b>сумма:</b> {stars_amount}⭐️\n"
+            f"<b>payload:</b> {invoice_payload}",
+            parse_mode='HTML'
+        )
 
 
 # Define the handler for the /stats command
