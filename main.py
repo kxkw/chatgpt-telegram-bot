@@ -1154,6 +1154,16 @@ def handle_refund_command(message):
         create_payment(transaction_id, target_user_id, 'refund', 0)
         update_user_stars_and_payments(target_user_id, -1 * stars_amount)
 
+        # Вычитаем партнерские комиссионные, если они были
+        partner_id = get_user_referrer(target_user_id)
+        if partner_id:
+            is_special = is_special_offer(payload)
+            process_partner_commission(partner_id, -1 * stars_amount, is_special, level=1)
+
+            second_level_partner_id = get_user_referrer(partner_id)
+            if second_level_partner_id:
+                process_partner_commission(second_level_partner_id, -1 * stars_amount, level=2)
+
         message_string = f"🔄 Рефанд оформлен\n\n" \
                          f"<b>uid</b>: <code>{str(target_user_id)}</code>\n" \
                          f"<b>сумма</b>: {str(stars_amount)}⭐️\n" \
