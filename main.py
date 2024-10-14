@@ -76,6 +76,11 @@ DEFAULT_NEW_USER_DATA = {
 """======================FUNCTIONS======================="""
 
 
+def get_current_timestamp() -> int:
+    """Получаем текущее время в секундах с начала эпохи (Unix timestamp)."""
+    return int(time.time())  # отбрасываем дробные доли секунды
+
+
 def is_user_admin(user_id: int) -> bool:  # TODO: вставить везде, где повторяются ручные проверки на админа
     return True if user_id == ADMIN_ID else False
 
