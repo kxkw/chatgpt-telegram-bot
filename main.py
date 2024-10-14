@@ -112,7 +112,7 @@ def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
 
 
 # Function to update the JSON file with relevant data
-def update_json_file(new_data, file_name=DATAFILE) -> None:
+def save_data(new_data, file_name=DATAFILE) -> None:
     with open(file_name, "w", encoding='utf-8') as file:
         json.dump(new_data, file, ensure_ascii=False, indent=4)
 
@@ -137,7 +137,7 @@ def write_request_data_to_csv(user_id: int, model_type: str, input_tokens, outpu
         if not is_file_exists:
             writer.writeheader()
 
-        # Write the payment data
+        # Write the request data
         writer.writerow(request_data)
 
 
@@ -547,7 +547,7 @@ def update_global_user_data(user_id: int, new_requests: int = 1, new_tokens: int
             # data[user_id]["balance"] -= new_whisper_seconds * 100
             data[user_id]["premium_balance"] -= new_whisper_seconds * 6  # минута Виспера - 400 прем токенов (6.666 токенов за 1 секунду), но сейчас скидка 10%
 
-    update_json_file(data)
+    save_data(data)
 
 
 def send_smart_split_message(bot_instance: telebot.TeleBot, chat_id: int, text: str, max_length: int = 4096, parse_mode: str = None, reply_to_message_id: int = None) -> None:
@@ -710,7 +710,7 @@ else:
             ADMIN_ID: {"requests": 0, "tokens": 0, "balance": 777777, "premium_balance": 77777, "image_balance": 777,
                        "name": "АДМИН", "username": "@admin", "lastdate": "01-05-2023 00:00:00"}}
     # Create the file with default values
-    update_json_file(data)
+    save_data(data)
 
 # Папка для хранения расширенного контекста, если ее еще нет
 os.makedirs(CHAT_CONTEXT_FOLDER, exist_ok=True)
@@ -986,7 +986,7 @@ def handle_refill_command(message):
 
     data[target_user_id][balance_type] += amount
 
-    update_json_file(data)
+    save_data(data)
     bot.send_message(ADMIN_ID, success_string + f"\nТекущий {prefix}баланс: {data[target_user_id][balance_type]}")
     try:
         if amount > 0:
@@ -1034,7 +1034,7 @@ def handle_block_command(message):
         return
 
     data[target_user]["blacklist"] = True
-    update_json_file(data)
+    save_data(data)
     bot.send_message(ADMIN_ID, success_string)
     print(success_string)
 
@@ -1249,7 +1249,7 @@ def handle_start_command(message):
         referrer = None
 
     add_new_user(user.id, user.first_name, user.username, referrer)
-    update_json_file(data)
+    save_data(data)
 
     new_user_log = f"\nНовый пользователь: {user.full_name} " \
                    f"@{user.username} {user.id}!"
@@ -1413,7 +1413,7 @@ def handle_feedback_response(call):
         user_id = int(button.split(":")[1])
 
         data[user_id]["balance"] += 20000  # Award 20k tokens
-        update_json_file(data)
+        save_data(data)
 
         bot.answer_callback_query(call.id, text="Хороший отзыв, спасибо челу!")
         try:
@@ -1441,7 +1441,7 @@ def handle_prompt_command(message):
     if is_user_exists(user.id):
         if prompt:
             data[user.id]["prompt"] = prompt
-            update_json_file(data)
+            save_data(data)
             bot.reply_to(message, f"Установлен промпт: `{prompt}`", parse_mode="Markdown")
             print("\nУстановлен промпт: " + prompt)
         else:
@@ -1472,7 +1472,7 @@ def handle_reset_prompt_command(message):
     if is_user_exists(user.id):
         if data[user.id].get("prompt") is not None:
             del data[user.id]["prompt"]
-            update_json_file(data)
+            save_data(data)
             bot.reply_to(message, f"Системный промпт сброшен до значения по умолчанию")
             print("\nСистемный промпт сброшен до значения по умолчанию")
         else:
@@ -1511,7 +1511,7 @@ def handle_switch_model_command(message):
         return
 
     data[user_id]["lang_model"] = target_model_type
-    update_json_file(data)
+    save_data(data)
 
     bot.reply_to(message, f"Языковая модель успешно изменена!\n\n*Текущая модель*: {target_model} {postfix}", parse_mode="Markdown")
     print(f"Модель пользователя {user_id} изменена на {target_model_type}")
@@ -1540,7 +1540,7 @@ def handle_ask_favor_command(message):
     else:
         bot.reply_to(message, "Ваша заявка отправлена на рассмотрение администратору 🙏\n")
         data[user.id]["active_favor_request"] = True
-        update_json_file(data)
+        save_data(data)
 
         admin_invoice_string = f"Пользователь {user.full_name} @{user.username} {user.id} просит подачку!\n\n" \
                                f"requests: {data[user.id]['requests']}\n" \
@@ -1581,7 +1581,7 @@ def handle_favor_callback(call):
 
         if user.get("active_favor_request"):
             del user["active_favor_request"]
-        update_json_file(data)
+        save_data(data)
 
         bot.send_message(user_id, f"Ваши мольбы были услышаны! 🙏\n\n"
                                   f"Вам начислено {FAVOR_AMOUNT} токенов!\n"
@@ -1600,7 +1600,7 @@ def handle_favor_callback(call):
 
         if user.get("active_favor_request"):
             del user["active_favor_request"]
-        update_json_file(data)
+        save_data(data)
 
         bot.send_message(user_id, "Вам было отказано в просьбе, попробуйте позже!")
 
@@ -1648,7 +1648,7 @@ def handle_extended_context_command(message):
         if data[user_id].get("max_context_length"):  # if is_user_extended_chat_context_enabled(user_id):
             delete_user_chat_context(user_id)
             del data[user_id]["max_context_length"]
-            update_json_file(data)
+            save_data(data)
 
             bot.reply_to(message, "Расширенный контекст отключен, история диалога очищена. \nРаботаем в стандартном режиме")
         else:
@@ -1659,7 +1659,7 @@ def handle_extended_context_command(message):
     else:
         # data[user_id]["is_chat_context_enabled"] = True
         data[user_id]["max_context_length"] = max_context
-        update_json_file(data)
+        save_data(data)
 
         bot.reply_to(message, f"Максимальная длина контекста установлена на {max_context} символов. \n\n"
                               f"Напоминание: теперь каждый запрос может расходовать до {max_context} токенов.\n"
@@ -2033,7 +2033,8 @@ if __name__ == '__main__':
     print("---работаем---")
     bot.infinity_polling()
 
-    # Делаем бэкап бд и уведомляем админа об успешном завершении работы
-    update_json_file(data, BACKUPFILE)
-    bot.send_message(ADMIN_ID, "Бот остановлен")
+    # Снова на всякий сохраняем данные в бд, делаем бэкап бд и уведомляем админа об успешном завершении работы
+    save_data(data, BACKUPFILE)
+    save_data(data, force_save=True)
+    bot.send_message(ADMIN_ID, "Сейвы сделаны, бот остановлен")
     print("\n---работа завершена---")
