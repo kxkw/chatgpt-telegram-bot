@@ -2069,5 +2069,6 @@ if __name__ == '__main__':
     # Снова на всякий сохраняем данные в бд, делаем бэкап бд и уведомляем админа об успешном завершении работы
     save_data(data, BACKUPFILE)
     save_data(data, force_save=True)
-    bot.send_message(ADMIN_ID, "Сейвы сделаны, бот остановлен")
+    bot.send_message(ADMIN_ID, "Сейвы сделаны, бот остановлен, отрубаюсь через пять секунд...")
+    time.sleep(5)
     print("\n---работа завершена---")
