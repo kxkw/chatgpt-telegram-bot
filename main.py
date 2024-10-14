@@ -40,6 +40,9 @@ FAVOR_MIN_LIMIT = 10000  # minimum balance to ask for a favor
 DEFAULT_CHAT_CONTEXT_LENGTH = 5000  # default max length of chat context in characters.
 CHAT_CONTEXT_FOLDER = "chat_context/"
 
+DATA_SAVE_INTERVAL = 10  # Time interval in seconds for saving user data to JSON file
+DATE_FORMAT = "%d.%m.%Y %H:%M:%S"  # date format for logging
+
 # load .env file with secrets
 load_dotenv()
 
@@ -117,9 +120,33 @@ def add_new_user(user_id: int, name: str, username: str, referrer=None) -> None:
 
 
 # Function to update the JSON file with relevant data
-def save_data(new_data, file_name=DATAFILE) -> None:
+def update_json_file(new_data, file_name=DATAFILE) -> None:
     with open(file_name, "w", encoding='utf-8') as file:
         json.dump(new_data, file, ensure_ascii=False, indent=4)
+
+
+# Смарт сейвинг, чтобы без дудоса жсона
+def save_data(new_data, file_name=DATAFILE, force_save=False) -> None:
+    """
+    Сохраняет данные в указанный файл. Если файл является основным файлом данных, то
+    сохраняет данные только через определенные интервалы времени, чтобы избежать
+    избыточных операций записи. Если force_save=True, то данные будут
+    сохранены в любом случае, независимо от времени последнего сохранения.
+    """
+    global last_data_save_time
+    current_time = get_current_timestamp()
+    time_since_last_save = current_time - last_data_save_time
+
+    # периодичность сохранения учитываем только для основного файла
+    if file_name == DATAFILE:
+        if force_save or time_since_last_save >= DATA_SAVE_INTERVAL:
+            update_json_file(new_data, file_name)
+            last_data_save_time = current_time  # Update the last save time
+            #print(f"💾 Data saved to {file_name} at {time.ctime(last_data_save_time)}\n")
+        else:
+            pass
+    else:
+        update_json_file(new_data, file_name)
 
 
 def write_request_data_to_csv(user_id: int, model_type: str, input_tokens, output_tokens: int) -> None:
@@ -729,6 +756,7 @@ WHISPER_SEC_PRICE_CENTS = WHISPER_MIN_PRICE / 60 * 100
 
 # Session token and request counters
 session_request_counter, session_tokens, premium_session_tokens, session_images, session_whisper_seconds = 0, 0, 0, 0, 0  # TODO: мб бахнуть класс session
+last_data_save_time = 0
 
 
 """====================ADMIN_COMMANDS===================="""
