@@ -194,7 +194,7 @@ def create_default_prices_file() -> dict:
     
     with open(PRICES_FILE, 'w', encoding='utf-8') as file:
         json.dump(default_prices, file, indent=4, ensure_ascii=False)
-    print(f"Создан файл {PRICES_FILE} с плейсхолдер ценами. Пожалуйста, заполните его актуальными данными и перезапустите бота.")
+    print(f"Создан файл {PRICES_FILE} с плейсхолдер ценами. Пожалуйста, заполните его актуальными данными и перезапустите бота. Или используйте команду /update_prices")
     return default_prices
 
 
@@ -1580,6 +1580,60 @@ def process_announcement_confirmation_step(message, recepients_list, announcemen
     send_smart_split_message(bot, ADMIN_ID, admin_log)
 
     print("Рассылка успешно завершена, логи отправлены админу")
+
+
+@bot.message_handler(commands=['update_prices'])
+def handle_update_prices_command(message):
+    if not is_user_admin(message.from_user.id):
+        return
+    
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, "Для начала давай перейдем в личку, бро!")
+        return
+
+    bot.send_message(ADMIN_ID, f"Я готов, можешь скидывать мне новый файл <code>{PRICES_FILE}</code> с актуальными ценами 📭", parse_mode="HTML")
+    bot.register_next_step_handler(message, process_prices_file)
+
+
+def process_prices_file(message):
+    global prices
+    backup_file = f"{PRICES_FILE}.backup"
+
+    if not is_user_admin(message.from_user.id):
+        return
+
+    if not message.document or message.document.file_name != PRICES_FILE:
+        bot.reply_to(message, f"❌ Надо было скинуть файл с именем <code>{PRICES_FILE}</code>! Ладно, тогда в другой раз.", parse_mode="HTML")
+        return
+
+    try:
+        file_info = bot.get_file(message.document.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # Сохраняем текущий файл с ценами как резервную копию
+        if os.path.exists(PRICES_FILE):
+            os.rename(PRICES_FILE, backup_file)
+        
+        # Сохраняем новый загруженный файл
+        with open(PRICES_FILE, 'wb') as new_file:
+            new_file.write(downloaded_file)
+        
+        # Обновляем цены
+        prices = load_prices(PRICES_FILE)
+        
+        # Сносим бэкап, если все прошло успешно
+        if os.path.exists(backup_file):
+            os.remove(backup_file)
+
+        bot.reply_to(message, "✅ Новые цены успешно получены и обновлены! Проверить их можно в /store")
+    except Exception as e:
+        bot.reply_to(message, f"Произошла ошибка при обновлении цен: {str(e)}")
+        if os.path.exists(backup_file):
+            os.rename(backup_file, PRICES_FILE)
+        
+        # TODO: мб отключать оплаты в боте, пока не пофиксят новый файл с ценами
+        # Перезагружаем старые цены в случае ошибки
+        prices = load_prices(PRICES_FILE)
 
 
 """====================USER_COMMANDS====================="""
