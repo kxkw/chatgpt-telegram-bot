@@ -790,7 +790,7 @@ def handle_data_command(message):
     # Calculate user cost in cents and round it to 3 digits after the decimal point
     user_cost_cents = calculate_cost(data[target_user_id]['tokens'], data[target_user_id].get('premium_tokens', 0),
                                      data[target_user_id].get('images', 0), data[target_user_id].get('whisper_seconds', 0))
-    user_data_string += f"user cost: {format_cents_to_price_string(user_cost_cents)}\n\n"
+    user_data_string += f"user cost: {format_cents_to_price_string(user_cost_cents)}\n"
 
     # Если есть инфа о количестве исполненных просьб на пополнение, то выдать ее
     if "favors" in data[target_user_id]:
@@ -810,7 +810,7 @@ def handle_data_command(message):
         bot.send_message(ADMIN_ID, user_data_string)
         return
 
-    user_data_string += f"{len(user_referrals_list)} invited users:\n"
+    user_data_string += f"\n{len(user_referrals_list)} invited users:\n"
     for ref in user_referrals_list:
         user_data_string += f"{data[ref]['name']} {data[ref]['username']} {ref}: {data[ref]['requests']}\n"
 
@@ -1305,20 +1305,6 @@ def handle_balance_command(message):
                       f"Для генерации изображений используйте команду /imagine\n")
 
     bot.reply_to(message, balance_string)
-
-
-# Define the handler for the /topup command
-@bot.message_handler(commands=["topup"])
-def handle_topup_command(message):
-    user_id = message.from_user.id
-
-    if is_user_blacklisted(user_id):
-        return
-
-    if is_user_exists(user_id):
-        bot.reply_to(message, f"Для пополнения баланса обратитесь к админу")  # Placeholder
-    else:
-        bot.reply_to(message, "Вы не зарегистрированы в системе. Напишите /start")
 
 
 # Define the handler for the /stats command
