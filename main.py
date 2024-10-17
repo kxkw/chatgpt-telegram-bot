@@ -351,6 +351,11 @@ def get_openai_image_recognition_response(image_path: str, user_request: str, ma
     return response.json()
 
 
+def get_user_referral_link(user_id: int) -> str:
+    """Generate a unique referral link for a user."""
+    return f'https://t.me/{bot.get_me().username}?start={user_id}'
+
+
 # Function to get all user's referrals
 def get_user_referrals(user_id: int) -> list:
     user_referrals = []
@@ -1322,7 +1327,7 @@ def handle_ref_command(message):
         ref_string = f"Пригласи друга по своей уникальной ссылке и раздели с ним 🎁*{REFERRAL_BONUS*2}*🎁 " \
                      f"токенов на двоих!\n\n" \
                      f"*Твоя реферальная ссылка:* \n" \
-                     f"`https://t.me/{bot.get_me().username}?start={user_id}`\n\n" \
+                     f"`{get_user_referral_link(user_id)}`\n\n" \
                      f"Зарабатывать еще никогда не было так легко! 🤑"
         bot.reply_to(message, ref_string, parse_mode="Markdown")
     else:
