@@ -313,6 +313,11 @@ def get_user_referrals(user_id: int) -> list:
     return user_referrals
 
 
+def get_user_referrer(user_id: int) -> Optional[int]:
+    """Retrieve the referrer id for a user if it exists."""
+    return data[user_id].get("ref_id", None)
+
+
 def get_recent_active_users(days: int) -> list:
     recent_active_users = []
     current_date = datetime.now()
@@ -801,8 +806,8 @@ def handle_data_command(message):
         user_data_string += f"prompt: {data[target_user_id].get('prompt')}\n\n"
 
     # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
-    if "ref_id" in data[target_user_id]:
-        referrer = data[target_user_id]["ref_id"]
+    referrer = get_user_referrer(target_user_id)
+    if referrer:
         user_data_string += f"invited by: {data[referrer]['name']} {data[referrer]['username']} {referrer}\n\n"
 
     user_referrals_list: list = get_user_referrals(target_user_id)
@@ -1331,8 +1336,8 @@ def handle_stats_command(message):
             user_data_string += f"{data[ref]['name']} {data[ref]['username']}\n"
 
     # Если пользователя пригласили по рефке, то выдать информацию о пригласившем
-    if "ref_id" in user_data:
-        referrer = user_data["ref_id"]
+    referrer = get_user_referrer(user_id)
+    if referrer:
         user_data_string += f"\nВас пригласил: {data[referrer]['name']} {data[referrer]['username']}\n\n"
 
     send_smart_split_message(bot, message.chat.id, user_data_string, reply_to_message_id=message.id)
