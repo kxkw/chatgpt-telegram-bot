@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-import telebot
 
 
 DEFAULT_MODEL = "gpt-4o-mini"  # 128k input, 16k output tokens context window
@@ -45,6 +44,4 @@ DEFAULT_NEW_USER_DATA = {
 load_dotenv()
 ADMIN_ID = int(os.getenv("ADMIN_ID"))  # айди начальника бота
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # OpenAI API key from .env file
-
-# Create a new Telebot instance
-bot = telebot.TeleBot(os.getenv("TELEGRAM_API_KEY"))
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_API_KEY")  # по хорошему бы переименовать переменную в .env файле, но не хочется у братишек с гитхуба ломать совместимость

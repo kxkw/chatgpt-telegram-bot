@@ -19,10 +19,6 @@ import requests
 from config import *
 
 
-# Load OpenAI API credentials from .env file
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-
 """======================FUNCTIONS======================="""
 
 
@@ -685,7 +681,12 @@ def convert_voice_message_to_text(message: telebot.types.Message) -> str:
 """========================SETUP========================="""
 
 
-# Check if the file exists
+# Create a new Telebot instance
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Load user data from data.json file
 if os.path.isfile(DATAFILE):
     # Read the contents of the file
     with open(DATAFILE, "r", encoding='utf-8') as f:
